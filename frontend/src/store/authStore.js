@@ -69,25 +69,6 @@ export const useAuthStore = create((set, get) => ({
     });
   },
 
-  finishBootstrapWithStoredAuth: () => {
-    const token = getStoredToken();
-    const user = getStoredUser();
-    
-    if (!token) {
-      get().finishBootstrapWithoutAuth();
-      return;
-    }
-  
-    set({
-      token,
-      user,
-      isAuthenticated: true,
-      isAuthLoading: false,
-      isBootstrapping: false,
-      authError: null,
-    });
-  },
-
   register: async (payload) => {
     set({
       isAuthLoading: true,

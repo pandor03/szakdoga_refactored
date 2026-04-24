@@ -10,34 +10,24 @@ import SaveRequiredRoute from "../components/SaveRequiredRoute";
 
 function AppBootstrap({ children }) {
   const token = useAuthStore((state) => state.token);
-  const user = useAuthStore((state) => state.user);
+  const isBootstrapping = useAuthStore((state) => state.isBootstrapping);
   const fetchMe = useAuthStore((state) => state.fetchMe);
   const finishBootstrapWithoutAuth = useAuthStore(
     (state) => state.finishBootstrapWithoutAuth
   );
-  const finishBootstrapWithStoredAuth = useAuthStore(
-    (state) => state.finishBootstrapWithStoredAuth
-  );
 
   useEffect(() => {
+    if (!isBootstrapping) {
+      return;
+    }
+
     if (!token) {
       finishBootstrapWithoutAuth();
       return;
     }
 
-    if (user) {
-      finishBootstrapWithStoredAuth();
-      return;
-    }
-
     fetchMe().catch(() => {});
-  }, [
-    token,
-    user,
-    fetchMe,
-    finishBootstrapWithoutAuth,
-    finishBootstrapWithStoredAuth,
-  ]);
+  }, [token, isBootstrapping, fetchMe, finishBootstrapWithoutAuth]);
 
   return children;
 }
