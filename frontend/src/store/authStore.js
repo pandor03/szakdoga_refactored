@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { getMe, loginUser } from "../api/authApi";
+import { getMe, loginUser, registerUser } from "../api/authApi";
 
 const ACCESS_TOKEN_KEY = "accessToken";
 const AUTH_USER_KEY = "authUser";
@@ -40,6 +40,9 @@ const clearPersistedAuth = () => {
   localStorage.removeItem(AUTH_USER_KEY);
 };
 
+const getErrorMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.message || fallback;
+
 const initialToken = getStoredToken();
 const initialUser = getStoredUser();
 
@@ -64,6 +67,31 @@ export const useAuthStore = create((set, get) => ({
       isBootstrapping: false,
       authError: null,
     });
+  },
+
+  register: async (payload) => {
+    set({
+      isAuthLoading: true,
+      authError: null,
+    });
+
+    try {
+      const response = await registerUser(payload);
+
+      set({
+        isAuthLoading: false,
+        authError: null,
+      });
+
+      return response;
+    } catch (error) {
+      set({
+        isAuthLoading: false,
+        authError: getErrorMessage(error, "Registration failed"),
+      });
+
+      throw error;
+    }
   },
 
   login: async (credentials) => {
@@ -99,10 +127,7 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: false,
         isAuthLoading: false,
         isBootstrapping: false,
-        authError:
-          error?.response?.data?.message ||
-          error?.message ||
-          "Login failed",
+        authError: getErrorMessage(error, "Login failed"),
       });
 
       throw error;
@@ -149,10 +174,7 @@ export const useAuthStore = create((set, get) => ({
         isAuthenticated: false,
         isAuthLoading: false,
         isBootstrapping: false,
-        authError:
-          error?.response?.data?.message ||
-          error?.message ||
-          "Authentication failed",
+        authError: getErrorMessage(error, "Authentication failed"),
       });
 
       throw error;
