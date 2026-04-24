@@ -1,109 +1,174 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { loginUser, getMe } from "../api/authApi";
+import { getMe, loginUser } from "../api/authApi";
 
-export const useAuthStore = create(
-  persist(
-    (set, get) => ({
+const ACCESS_TOKEN_KEY = "accessToken";
+const AUTH_USER_KEY = "authUser";
+
+const getStoredToken = () => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+};
+
+const getStoredUser = () => {
+  if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(AUTH_USER_KEY);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(AUTH_USER_KEY);
+    return null;
+  }
+};
+
+const persistAuth = ({ token, user }) => {
+  if (typeof window === "undefined") return;
+
+  if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  else localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+  if (user) localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  else localStorage.removeItem(AUTH_USER_KEY);
+};
+
+const clearPersistedAuth = () => {
+  if (typeof window === "undefined") return;
+
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+};
+
+const initialToken = getStoredToken();
+const initialUser = getStoredUser();
+
+export const useAuthStore = create((set, get) => ({
+  token: initialToken,
+  user: initialUser,
+  isAuthenticated: Boolean(initialToken),
+  isAuthLoading: false,
+  isBootstrapping: Boolean(initialToken),
+  authError: null,
+
+  clearAuthError: () => set({ authError: null }),
+
+  finishBootstrapWithoutAuth: () => {
+    clearPersistedAuth();
+
+    set({
       token: null,
       user: null,
       isAuthenticated: false,
       isAuthLoading: false,
+      isBootstrapping: false,
       authError: null,
+    });
+  },
 
-      setToken: (token) =>
-        set({
-          token,
-          isAuthenticated: !!token,
-        }),
+  login: async (credentials) => {
+    set({
+      isAuthLoading: true,
+      authError: null,
+    });
 
-      clearAuthError: () => set({ authError: null }),
+    try {
+      const response = await loginUser(credentials);
 
-      login: async (credentials) => {
-        set({
-          isAuthLoading: true,
-          authError: null,
-        });
+      persistAuth({
+        token: response.accessToken,
+        user: response.user,
+      });
 
-        try {
-          const response = await loginUser(credentials);
+      set({
+        token: response.accessToken,
+        user: response.user,
+        isAuthenticated: true,
+        isAuthLoading: false,
+        isBootstrapping: false,
+        authError: null,
+      });
 
-          set({
-            token: response.accessToken,
-            user: response.user,
-            isAuthenticated: true,
-            isAuthLoading: false,
-            authError: null,
-          });
+      return response;
+    } catch (error) {
+      clearPersistedAuth();
 
-          return response;
-        } catch (error) {
-          set({
-            isAuthLoading: false,
-            authError:
-              error?.response?.data?.message ||
-              error?.message ||
-              "Login failed",
-          });
-          throw error;
-        }
-      },
+      set({
+        token: null,
+        user: null,
+        isAuthenticated: false,
+        isAuthLoading: false,
+        isBootstrapping: false,
+        authError:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Login failed",
+      });
 
-      fetchMe: async () => {
-        const token = get().token;
-        if (!token) {
-          set({
-            user: null,
-            isAuthenticated: false,
-          });
-          return null;
-        }
-
-        set({
-          isAuthLoading: true,
-          authError: null,
-        });
-
-        try {
-          const response = await getMe();
-          set({
-            user: response.user,
-            isAuthenticated: true,
-            isAuthLoading: false,
-          });
-          return response;
-        } catch (error) {
-          set({
-            token: null,
-            user: null,
-            isAuthenticated: false,
-            isAuthLoading: false,
-            authError:
-              error?.response?.data?.message ||
-              error?.message ||
-              "Authentication failed",
-          });
-          throw error;
-        }
-      },
-
-      logout: () =>
-        set({
-          token: null,
-          user: null,
-          isAuthenticated: false,
-          isAuthLoading: false,
-          authError: null,
-        }),
-    }),
-    {
-      name: "auth-storage",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        token: state.token,
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      throw error;
     }
-  )
-);
+  },
+
+  fetchMe: async () => {
+    const token = get().token;
+
+    if (!token) {
+      get().finishBootstrapWithoutAuth();
+      return null;
+    }
+
+    set({
+      isAuthLoading: true,
+      isBootstrapping: true,
+      authError: null,
+    });
+
+    try {
+      const response = await getMe();
+
+      persistAuth({
+        token,
+        user: response.user,
+      });
+
+      set({
+        user: response.user,
+        isAuthenticated: true,
+        isAuthLoading: false,
+        isBootstrapping: false,
+        authError: null,
+      });
+
+      return response;
+    } catch (error) {
+      clearPersistedAuth();
+
+      set({
+        token: null,
+        user: null,
+        isAuthenticated: false,
+        isAuthLoading: false,
+        isBootstrapping: false,
+        authError:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Authentication failed",
+      });
+
+      throw error;
+    }
+  },
+
+  logout: () => {
+    clearPersistedAuth();
+
+    set({
+      token: null,
+      user: null,
+      isAuthenticated: false,
+      isAuthLoading: false,
+      isBootstrapping: false,
+      authError: null,
+    });
+  },
+}));

@@ -1,19 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import { useGameStore } from "../store/gameStore";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+
   const login = useAuthStore((state) => state.login);
+  const isAuthLoading = useAuthStore((state) => state.isAuthLoading);
+  const authError = useAuthStore((state) => state.authError);
+  const clearAuthError = useAuthStore((state) => state.clearAuthError);
+
   const activeSaveId = useGameStore((state) => state.activeSaveId);
 
   const [form, setForm] = useState({
     email: "",
     password: "",
   });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    clearAuthError();
+  }, [clearAuthError]);
 
   const handleChange = (e) => {
     setForm((prev) => ({
@@ -24,16 +31,12 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
 
     try {
       await login(form);
       navigate(activeSaveId ? "/dashboard" : "/saves");
-    } catch (err) {
-      setError(err?.response?.data?.message || "Sikertelen bejelentkezés");
-    } finally {
-      setLoading(false);
+    } catch {
+      // A hibát az authStore kezeli.
     }
   };
 
@@ -61,12 +64,12 @@ export default function LoginPage() {
             required
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Belépés..." : "Belépés"}
+          <button type="submit" disabled={isAuthLoading}>
+            {isAuthLoading ? "Belépés..." : "Belépés"}
           </button>
         </form>
 
-        {error && <p className="error-text">{error}</p>}
+        {authError && <p className="error-text">{authError}</p>}
 
         <p className="muted-text">
           Nincs még fiókod? <Link to="/register">Regisztráció</Link>
