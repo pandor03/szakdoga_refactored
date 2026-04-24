@@ -10,9 +10,13 @@ import SaveRequiredRoute from "../components/SaveRequiredRoute";
 
 function AppBootstrap({ children }) {
   const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
   const fetchMe = useAuthStore((state) => state.fetchMe);
   const finishBootstrapWithoutAuth = useAuthStore(
     (state) => state.finishBootstrapWithoutAuth
+  );
+  const finishBootstrapWithStoredAuth = useAuthStore(
+    (state) => state.finishBootstrapWithStoredAuth
   );
 
   useEffect(() => {
@@ -21,8 +25,19 @@ function AppBootstrap({ children }) {
       return;
     }
 
+    if (user) {
+      finishBootstrapWithStoredAuth();
+      return;
+    }
+
     fetchMe().catch(() => {});
-  }, [token, fetchMe, finishBootstrapWithoutAuth]);
+  }, [
+    token,
+    user,
+    fetchMe,
+    finishBootstrapWithoutAuth,
+    finishBootstrapWithStoredAuth,
+  ]);
 
   return children;
 }

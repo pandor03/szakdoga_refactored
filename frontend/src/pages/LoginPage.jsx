@@ -34,7 +34,7 @@ export default function LoginPage() {
 
     try {
       await login(form);
-      navigate(activeSaveId ? "/dashboard" : "/saves");
+      navigate("/saves", { replace: true });
     } catch {
       // A hibát az authStore kezeli.
     }
