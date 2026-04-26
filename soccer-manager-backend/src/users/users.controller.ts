@@ -131,6 +131,18 @@ export class UsersController {
       body.awayGoals,
     );
   }
+  
+  @Post('saves/:saveId/simulate-current-round')
+  async simulateRemainingFixturesInCurrentRound(
+    @Param('saveId') saveId: string,
+  ) {
+    return this.usersService.simulateRemainingFixturesInCurrentRound(saveId);
+  }
+  
+  @Post('saves/:saveId/complete-current-round')
+  async completeCurrentRound(@Param('saveId') saveId: string) {
+    return this.usersService.completeCurrentRound(saveId);
+  }
 
   @Get('saves/:saveId/rounds')
   async getRoundsOverview(@Param('saveId') saveId: string) {

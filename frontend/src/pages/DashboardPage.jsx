@@ -1,51 +1,49 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDashboard } from "../api/dashboardApi";
+import GameNav from "../components/GameNav";
 import { useAuthStore } from "../store/authStore";
+import { useDashboardStore } from "../store/dashboardStore";
 import { useGameStore } from "../store/gameStore";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+
   const logout = useAuthStore((state) => state.logout);
+
   const activeSaveId = useGameStore((state) => state.activeSaveId);
   const clearActiveSave = useGameStore((state) => state.clearActiveSave);
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const dashboard = useDashboardStore((state) => state.dashboard);
+  const isLoadingDashboard = useDashboardStore(
+    (state) => state.isLoadingDashboard
+  );
+  const dashboardError = useDashboardStore((state) => state.dashboardError);
+  const loadDashboard = useDashboardStore((state) => state.loadDashboard);
+  const resetDashboard = useDashboardStore((state) => state.resetDashboard);
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      if (!activeSaveId) return;
+    if (!activeSaveId) {
+      resetDashboard();
+      return;
+    }
 
-      setLoading(true);
-      setError("");
-
-      try {
-        const response = await getDashboard(activeSaveId);
-        setData(response);
-      } catch (err) {
-        setError(err?.response?.data?.message || "Nem sikerült betölteni a dashboardot.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboard();
-  }, [activeSaveId]);
+    loadDashboard(activeSaveId).catch(() => {});
+  }, [activeSaveId, loadDashboard, resetDashboard]);
 
   const handleBackToSaves = () => {
+    resetDashboard();
     clearActiveSave();
     navigate("/saves");
   };
 
   const handleLogout = () => {
+    resetDashboard();
     clearActiveSave();
     logout();
     navigate("/login");
   };
 
-  if (loading) {
+  if (isLoadingDashboard) {
     return (
       <div className="page-shell">
         <div className="page-container">
@@ -57,12 +55,13 @@ export default function DashboardPage() {
     );
   }
 
-  if (error) {
+  if (dashboardError) {
     return (
       <div className="page-shell">
         <div className="page-container">
           <div className="card">
-            <p className="error-text">{error}</p>
+            <p className="error-text">{dashboardError}</p>
+
             <div className="row-gap">
               <button onClick={handleBackToSaves}>Vissza a mentésekhez</button>
             </div>
@@ -72,7 +71,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data) {
+  if (!dashboard) {
     return (
       <div className="page-shell">
         <div className="page-container">
@@ -89,19 +88,24 @@ export default function DashboardPage() {
       <div className="page-container">
         <div className="top-row">
           <div>
-            <h1>{data.save.name}</h1>
+            <h1>{dashboard.save.name}</h1>
+
             <p className="muted-text">
               Irányított csapat:{" "}
               <strong>
-                {data.selectedTeam?.name} ({data.selectedTeam?.shortName})
+                {dashboard.selectedTeam?.name} (
+                {dashboard.selectedTeam?.shortName})
               </strong>
             </p>
           </div>
 
           <div className="button-row">
+            <GameNav />
+
             <button className="secondary-btn" onClick={handleBackToSaves}>
               Mentések
             </button>
+
             <button className="secondary-btn" onClick={handleLogout}>
               Kilépés
             </button>
@@ -111,22 +115,27 @@ export default function DashboardPage() {
         <div className="dashboard-grid">
           <section className="card">
             <h2>Szezon állapot</h2>
+
             <p>
               Forduló:{" "}
               <strong>
-                {data.seasonState.currentRound} / {data.seasonState.totalRounds}
+                {dashboard.seasonState.currentRound} /{" "}
+                {dashboard.seasonState.totalRounds}
               </strong>
             </p>
-            <p>Vége: {data.seasonState.isFinished ? "Igen" : "Nem"}</p>
+
+            <p>Vége: {dashboard.seasonState.isFinished ? "Igen" : "Nem"}</p>
           </section>
 
           <section className="card">
             <h2>Tabella top 4</h2>
-            {data.standings?.slice(0, 4).map((row) => (
+
+            {dashboard.standings?.slice(0, 4).map((row) => (
               <div key={row.team.id} className="table-row">
                 <span>
                   {row.position}. {row.team.name}
                 </span>
+
                 <strong>{row.points} pont</strong>
               </div>
             ))}
@@ -134,12 +143,14 @@ export default function DashboardPage() {
 
           <section className="card">
             <h2>Aktuális forduló</h2>
-            {data.currentRoundFixtures?.length ? (
-              data.currentRoundFixtures.map((fixture) => (
+
+            {dashboard.currentRoundFixtures?.length ? (
+              dashboard.currentRoundFixtures.map((fixture) => (
                 <div key={fixture.id} className="fixture-row">
                   <span>
                     {fixture.homeTeam.shortName} - {fixture.awayTeam.shortName}
                   </span>
+
                   <strong>
                     {fixture.isPlayed
                       ? `${fixture.homeGoals}-${fixture.awayGoals}`
@@ -154,12 +165,14 @@ export default function DashboardPage() {
 
           <section className="card">
             <h2>Előző forduló</h2>
-            {data.lastRoundFixtures?.length ? (
-              data.lastRoundFixtures.map((fixture) => (
+
+            {dashboard.lastRoundFixtures?.length ? (
+              dashboard.lastRoundFixtures.map((fixture) => (
                 <div key={fixture.id} className="fixture-row">
                   <span>
                     {fixture.homeTeam.shortName} - {fixture.awayTeam.shortName}
                   </span>
+
                   <strong>
                     {fixture.homeGoals}-{fixture.awayGoals}
                   </strong>

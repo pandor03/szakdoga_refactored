@@ -1,10 +1,16 @@
 import { useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
+
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import SaveSelectorPage from "../pages/SaveSelectorPage";
 import DashboardPage from "../pages/DashboardPage";
+import SquadPage from "../pages/SquadPage";
+import TransferPage from "../pages/TransferPage";
+import FixturesPage from "../pages/FixturesPage";
+import StandingsPage from "../pages/StandingsPage";
+
 import ProtectedRoute from "../components/ProtectedRoute";
 import SaveRequiredRoute from "../components/SaveRequiredRoute";
 
@@ -17,9 +23,7 @@ function AppBootstrap({ children }) {
   );
 
   useEffect(() => {
-    if (!isBootstrapping) {
-      return;
-    }
+    if (!isBootstrapping) return;
 
     if (!token) {
       finishBootstrapWithoutAuth();
@@ -30,6 +34,14 @@ function AppBootstrap({ children }) {
   }, [token, isBootstrapping, fetchMe, finishBootstrapWithoutAuth]);
 
   return children;
+}
+
+function ProtectedGamePage({ children }) {
+  return (
+    <ProtectedRoute>
+      <SaveRequiredRoute>{children}</SaveRequiredRoute>
+    </ProtectedRoute>
+  );
 }
 
 export default function AppRouter() {
@@ -52,11 +64,45 @@ export default function AppRouter() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
-                <SaveRequiredRoute>
-                  <DashboardPage />
-                </SaveRequiredRoute>
-              </ProtectedRoute>
+              <ProtectedGamePage>
+                <DashboardPage />
+              </ProtectedGamePage>
+            }
+          />
+
+          <Route
+            path="/squad"
+            element={
+              <ProtectedGamePage>
+                <SquadPage />
+              </ProtectedGamePage>
+            }
+          />
+
+          <Route
+            path="/transfer"
+            element={
+              <ProtectedGamePage>
+                <TransferPage />
+              </ProtectedGamePage>
+            }
+          />
+
+          <Route
+            path="/fixtures"
+            element={
+              <ProtectedGamePage>
+                <FixturesPage />
+              </ProtectedGamePage>
+            }
+          />
+
+          <Route
+            path="/standings"
+            element={
+              <ProtectedGamePage>
+                <StandingsPage />
+              </ProtectedGamePage>
             }
           />
 
