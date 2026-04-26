@@ -24,7 +24,30 @@ const SLOT_POSITIONS = {
   ST2: { top: "15%", left: "60%" },
 };
 
-export default function LineupPitch({ slots = [], lineupState = {}, allPlayers = [] }) {
+const MIDFIELD_POSITIONS = ["CM", "CDM", "CAM"];
+
+const getFitClass = (player, slot) => {
+  if (!player) return "";
+
+  if (player.position === slot.tacticalPosition) {
+    return "fit-good";
+  }
+
+  if (
+    MIDFIELD_POSITIONS.includes(player.position) &&
+    MIDFIELD_POSITIONS.includes(slot.tacticalPosition)
+  ) {
+    return "fit-ok";
+  }
+
+  return "fit-bad";
+};
+
+export default function LineupPitch({
+  slots = [],
+  lineupState = {},
+  allPlayers = [],
+}) {
   const getPlayerById = (playerId) => {
     if (!playerId) return null;
     return allPlayers.find((player) => player.id === playerId) || null;
@@ -49,22 +72,66 @@ export default function LineupPitch({ slots = [], lineupState = {}, allPlayers =
           <div
             key={slot.slotId}
             className={`pitch-player-card ${
-              player ? "filled-player-card" : "empty-player-card"
+              player ? `filled-player-card ${getFitClass(player, slot)}` : "empty-player-card"
             }`}
             style={{
               top: position.top,
               left: position.left,
             }}
           >
-            <strong>{slot.slotId}</strong>
+            {player && (
+              <span className="player-ovr">
+                {player.overall}
+              </span>
+            )}
 
-            <span>{slot.tacticalPosition}</span>
+            <div className="player-name">
+              {player ? player.name : "Üres"}
+            </div>
 
-            <small>
-              {player
-                ? `${player.name} | ${player.position} | ${player.overall}`
-                : "Üres"}
-            </small>
+            <div className="player-slot">
+              {slot.tacticalPosition}
+            </div>
+
+            {player && (
+              <div className="player-tooltip">
+                <strong>{player.name}</strong>
+
+                <p>
+                  {player.position} | OVR: {player.overall}
+                </p>
+
+                <div className="tooltip-stat-row">
+                  <span>Pace</span>
+                  <strong>{player.pace}</strong>
+                </div>
+
+                <div className="tooltip-stat-row">
+                  <span>Shooting</span>
+                  <strong>{player.shooting}</strong>
+                </div>
+
+                <div className="tooltip-stat-row">
+                  <span>Passing</span>
+                  <strong>{player.passing}</strong>
+                </div>
+
+                <div className="tooltip-stat-row">
+                  <span>Dribbling</span>
+                  <strong>{player.dribbling}</strong>
+                </div>
+
+                <div className="tooltip-stat-row">
+                  <span>Defending</span>
+                  <strong>{player.defending}</strong>
+                </div>
+
+                <div className="tooltip-stat-row">
+                  <span>Physical</span>
+                  <strong>{player.physical}</strong>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

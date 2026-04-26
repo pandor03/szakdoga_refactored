@@ -3,6 +3,9 @@ import GameNav from "../components/GameNav";
 import { useGameStore } from "../store/gameStore";
 import { useScreenStore } from "../store/screenStore";
 import LineupPitch from "../components/LineupPitch";
+import SquadSummary from "../components/SquadSummary";
+import LineupControls from "../components/LineupControls";
+import SquadPlayerList from "../components/SquadPlayerList";
 
 const SLOT_COMPATIBILITY = {
   GK: ["GK"],
@@ -168,81 +171,61 @@ export default function SquadPage() {
           <GameNav />
         </div>
 
-        <div className="card">
-          <h2>Kezdő (Formation alapú)</h2>
+        <div className="squad-layout">
+          <div className="squad-main-column">
+            <div className="card">
+              <h2>Kezdőcsapat</h2>
 
-          <div className="table-row">
-            <span>Formáció</span>
+              <LineupPitch
+                slots={lineupSlots}
+                lineupState={lineupState}
+                allPlayers={allPlayers}
+              />
 
-            <select
-              value={currentFormation}
-              disabled={isUpdating}
-              onChange={(e) => handleFormationChange(e.target.value)}
-            >
-              {FORMATION_OPTIONS.map((formation) => (
-                <option key={formation} value={formation}>
-                  {formation}
-                </option>
+              {lineupSlots.map((slot) => (
+                <div key={slot.slotId} className="table-row">
+                  <span>
+                    {slot.slotId} - {slot.tacticalPosition}
+                  </span>
+
+                  <select
+                    value={lineupState[slot.slotId] || ""}
+                    disabled={isUpdating}
+                    onChange={(e) => handleChange(slot.slotId, e.target.value)}
+                  >
+                    <option value="">-- üres --</option>
+
+                    {getFilteredPlayersForSlot(allPlayers, slot, lineupState).map(
+                      (player) => (
+                        <option key={player.id} value={player.id}>
+                          {player.name} ({player.position}) | OVR:{" "}
+                          {player.overall}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
               ))}
-            </select>
+            </div>
           </div>
 
-          <LineupPitch
-            slots={lineupSlots}
-            lineupState={lineupState}
-            allPlayers={allPlayers}
-          />
+          <div className="squad-side-column">
+            <SquadSummary squadScreen={squadScreen} />
 
-          {lineupSlots.map((slot) => (
-            <div key={slot.slotId} className="table-row">
-              <span>
-                {slot.slotId} - {slot.tacticalPosition}
-              </span>
-
-              <select
-                value={lineupState[slot.slotId] || ""}
-                disabled={isUpdating}
-                onChange={(e) => handleChange(slot.slotId, e.target.value)}
-              >
-                <option value="">-- üres --</option>
-
-                {getFilteredPlayersForSlot(allPlayers, slot, lineupState).map(
-                  (player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name} ({player.position}) | OVR: {player.overall}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-          ))}
-
-          {!isLineupValid && (
-            <div className="error-text" style={{ marginTop: "10px" }}>
-              {emptySlotCount > 0 && (
-                <p>Hiányzó pozíciók száma: {emptySlotCount}</p>
-              )}
-
-              {duplicatePlayerCount > 0 && (
-                <p>Egy játékos csak egyszer szerepelhet a kezdőben.</p>
-              )}
-            </div>
-          )}
-
-          <div style={{ marginTop: "10px" }}>
-            <button onClick={handleSave} disabled={isUpdating || !isLineupValid}>
-              Mentés
-            </button>
-
-            <button
-              onClick={handleAutoPick}
-              disabled={isUpdating}
-              style={{ marginLeft: "10px" }}
-            >
-              Auto pick
-            </button>
+            <LineupControls
+              currentFormation={currentFormation}
+              isUpdating={isUpdating}
+              isLineupValid={isLineupValid}
+              emptySlotCount={emptySlotCount}
+              duplicatePlayerCount={duplicatePlayerCount}
+              onFormationChange={handleFormationChange}
+              onSave={handleSave}
+              onAutoPick={handleAutoPick}
+            />
           </div>
         </div>
+
+        <SquadPlayerList players={allPlayers} />
       </div>
     </div>
   );
