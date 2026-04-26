@@ -28,4 +28,10 @@ export class SquadService {
   async getSelectedTeamClubSnapshot(saveId: string) {
     return this.usersService.getSelectedTeamClubSnapshot(saveId);
   }
+
+  async updateSelectedTeamFormation(saveId: string, formation: string) {
+    console.log("FORMATION SQUAD SERVICE VALUE:", formation);
+
+    return this.usersService.updateSelectedTeamFormation(saveId, formation);
+  }
 }

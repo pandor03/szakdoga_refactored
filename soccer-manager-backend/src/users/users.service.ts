@@ -4137,6 +4137,42 @@ export class UsersService {
     };
   }
 
+  async updateSelectedTeamFormation(saveId: string, formation: string) {
+    console.log("FORMATION USERS SERVICE VALUE:", formation);
+    console.log("FORMATION USERS SERVICE TYPE:", typeof formation);
+        
+    const { selectedTeam } = await this.getRequiredSelectedTeam(saveId);
+
+    if (!isSupportedFormation(formation)) {
+      throw new BadRequestException(
+        `Invalid formation. Allowed values: ${SUPPORTED_FORMATIONS.join(', ')}`,
+      );
+    }
+
+    await this.prisma.saveTeam.update({
+      where: {
+        id: selectedTeam.id,
+      },
+      data: {
+        formation,
+      },
+    });
+
+    await this.prisma.savePlayer.updateMany({
+      where: {
+        gameSaveId: saveId,
+        saveTeamId: selectedTeam.id,
+      },
+      data: {
+        role: 'reserve',
+        lineupPosition: null,
+        lineupSlot: null,
+      },
+    });
+
+    return this.autoPickSelectedTeamLineup(saveId);
+  }
+
   private mapPlayerForResponse(player: {
     id: string;
     name: string;

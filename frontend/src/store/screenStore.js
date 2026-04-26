@@ -10,6 +10,7 @@ import {
   playMyNextMatch,
   saveSelectedTeamLineup,
   simulateCurrentRound,
+  updateSelectedTeamFormation,
   updatePlayerLineupPosition,
   updatePlayerRole,
   updatePlayerTransferListStatus,
@@ -460,6 +461,35 @@ export const useScreenStore = create((set, get) => ({
         squadScreenError: getErrorMessage(
           error,
           "Nem sikerült automatikusan összeállítani a kezdőt."
+        ),
+      });
+
+      throw error;
+    }
+  },
+
+  changeFormation: async (saveId, formation) => {
+    set({
+      isUpdatingSquadPlayer: true,
+      squadScreenError: null,
+    });
+
+    try {
+      const result = await updateSelectedTeamFormation(saveId, formation);
+
+      await get().loadSquadScreen(saveId);
+
+      set({
+        isUpdatingSquadPlayer: false,
+      });
+
+      return result;
+    } catch (error) {
+      set({
+        isUpdatingSquadPlayer: false,
+        squadScreenError: getErrorMessage(
+          error,
+          "Nem sikerült módosítani a formációt."
         ),
       });
 

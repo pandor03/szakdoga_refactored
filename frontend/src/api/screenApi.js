@@ -102,3 +102,12 @@ export const updatePlayerLineupPosition = async (
   );
   return data;
 };
+
+export const updateSelectedTeamFormation = async (saveId, formation) => {
+  const { data } = await http.patch(
+    `/squad/saves/${saveId}/selected-team/formation`,
+    { formation }
+  );
+
+  return data;
+};

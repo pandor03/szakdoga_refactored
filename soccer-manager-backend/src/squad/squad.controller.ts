@@ -1,10 +1,22 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { SquadService } from './squad.service';
 import { SaveLineupDto } from '../users/dto/save-lineup.dto';
+import { UpdateFormationDto } from './dto/update-formation.dto';
 
 @Controller('squad')
 export class SquadController {
   constructor(private readonly squadService: SquadService) {}
+
+  @Patch('saves/:saveId/selected-team/formation')
+  async updateSelectedTeamFormation(
+    @Param('saveId') saveId: string,
+    @Body() body: UpdateFormationDto,
+  ) {
+    console.log("FORMATION CONTROLLER BODY:", body);
+    console.log("FORMATION CONTROLLER VALUE:", body.formation);
+
+    return this.squadService.updateSelectedTeamFormation(saveId, body.formation);
+  }
 
   @Get('saves/:saveId/selected-team/lineup')
   async getSelectedTeamLineup(@Param('saveId') saveId: string) {
