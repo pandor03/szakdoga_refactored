@@ -41,11 +41,92 @@ const getFitClass = (player, slot) => {
   return "fit-bad";
 };
 
+function PlayerTooltip({ player }) {
+  if (!player) return null;
+
+  return (
+    <div className="player-tooltip">
+      <strong>{player.name}</strong>
+
+      <p>
+        {player.position} | OVR: {player.overall}
+      </p>
+
+      <div className="tooltip-stat-row">
+        <span>Pace</span>
+        <strong>{player.pace}</strong>
+      </div>
+
+      <div className="tooltip-stat-row">
+        <span>Shooting</span>
+        <strong>{player.shooting}</strong>
+      </div>
+
+      <div className="tooltip-stat-row">
+        <span>Passing</span>
+        <strong>{player.passing}</strong>
+      </div>
+
+      <div className="tooltip-stat-row">
+        <span>Dribbling</span>
+        <strong>{player.dribbling}</strong>
+      </div>
+
+      <div className="tooltip-stat-row">
+        <span>Defending</span>
+        <strong>{player.defending}</strong>
+      </div>
+
+      <div className="tooltip-stat-row">
+        <span>Physical</span>
+        <strong>{player.physical}</strong>
+      </div>
+    </div>
+  );
+}
+
+function MiniPlayerCard({ player }) {
+  return (
+    <div className="bench-player-card">
+      <span className="bench-player-ovr">{player.overall}</span>
+
+      <strong>{player.name}</strong>
+      <small>{player.position}</small>
+
+      <PlayerTooltip player={player} />
+    </div>
+  );
+}
+
+function PlayerGroup({ title, players }) {
+  return (
+    <div className="pitch-player-group">
+      <div className="pitch-player-group-header">
+        <h3>{title}</h3>
+        <span>{players.length}</span>
+      </div>
+
+      {players.length ? (
+        <div className="bench-card-grid">
+          {players.map((player) => (
+            <MiniPlayerCard key={player.id} player={player} />
+          ))}
+        </div>
+      ) : (
+        <p className="muted-text">Nincs játékos ebben a csoportban.</p>
+      )}
+    </div>
+  );
+}
+
 export default function LineupPitch({
   slots = [],
   lineupState = {},
   allPlayers = [],
+  benchPlayers = [],
+  reservePlayers = [],
   onSlotSwap,
+  isUpdating = false,
 }) {
   const getPlayerById = (playerId) => {
     if (!playerId) return null;
@@ -67,95 +148,66 @@ export default function LineupPitch({
 
     const sourceSlotId = event.dataTransfer.getData("text/plain");
 
-    if (!sourceSlotId || sourceSlotId === targetSlotId) return;
+    if (!sourceSlotId || sourceSlotId === targetSlotId || isUpdating) return;
 
     onSlotSwap?.(sourceSlotId, targetSlotId);
   };
 
   return (
-    <div className="lineup-pitch">
-      <div className="pitch-line center-line" />
-      <div className="pitch-circle" />
-      <div className="pitch-box top-box" />
-      <div className="pitch-box bottom-box" />
+    <div className="lineup-pitch-section">
+      {isUpdating && (
+        <div className="lineup-inline-loading">Felállás frissítése...</div>
+      )}
 
-      {slots.map((slot) => {
-        const position = SLOT_POSITIONS[slot.slotId] || {
-          top: "50%",
-          left: "50%",
-        };
+      <div className="lineup-pitch">
+        <div className="pitch-line center-line" />
+        <div className="pitch-circle" />
+        <div className="pitch-box top-box" />
+        <div className="pitch-box bottom-box" />
 
-        const player = getPlayerById(lineupState[slot.slotId]);
-        const fitClass = getFitClass(player, slot);
+        {slots.map((slot) => {
+          const position = SLOT_POSITIONS[slot.slotId] || {
+            top: "50%",
+            left: "50%",
+          };
 
-        return (
-          <div
-            key={slot.slotId}
-            className={`pitch-player-card ${
-              player ? "filled-player-card" : "empty-player-card"
-            }`}
-            draggable={Boolean(player)}
-            onDragStart={(event) => handleDragStart(event, slot.slotId)}
-            onDragOver={handleDragOver}
-            onDrop={(event) => handleDrop(event, slot.slotId)}
-            style={{
-              top: position.top,
-              left: position.left,
-            }}
-          >
-            {player && (
-              <span className={`player-ovr ${fitClass}`}>
-                {player.overall}
-              </span>
-            )}
+          const player = getPlayerById(lineupState[slot.slotId]);
+          const fitClass = getFitClass(player, slot);
 
-            <div className="player-card-content">
-              <div className="player-name">{player ? player.name : "Üres"}</div>
-              <div className="player-slot">{slot.tacticalPosition}</div>
-            </div>
+          return (
+            <div
+              key={slot.slotId}
+              className={`pitch-player-card ${
+                player ? "filled-player-card" : "empty-player-card"
+              }`}
+              draggable={Boolean(player) && !isUpdating}
+              onDragStart={(event) => handleDragStart(event, slot.slotId)}
+              onDragOver={handleDragOver}
+              onDrop={(event) => handleDrop(event, slot.slotId)}
+              style={{
+                top: position.top,
+                left: position.left,
+              }}
+            >
+              {player && (
+                <span className={`player-ovr ${fitClass}`}>
+                  {player.overall}
+                </span>
+              )}
 
-            {player && (
-              <div className="player-tooltip">
-                <strong>{player.name}</strong>
-
-                <p>
-                  {player.position} | OVR: {player.overall}
-                </p>
-
-                <div className="tooltip-stat-row">
-                  <span>Pace</span>
-                  <strong>{player.pace}</strong>
-                </div>
-
-                <div className="tooltip-stat-row">
-                  <span>Shooting</span>
-                  <strong>{player.shooting}</strong>
-                </div>
-
-                <div className="tooltip-stat-row">
-                  <span>Passing</span>
-                  <strong>{player.passing}</strong>
-                </div>
-
-                <div className="tooltip-stat-row">
-                  <span>Dribbling</span>
-                  <strong>{player.dribbling}</strong>
-                </div>
-
-                <div className="tooltip-stat-row">
-                  <span>Defending</span>
-                  <strong>{player.defending}</strong>
-                </div>
-
-                <div className="tooltip-stat-row">
-                  <span>Physical</span>
-                  <strong>{player.physical}</strong>
-                </div>
+              <div className="player-card-content">
+                <div className="player-name">{player ? player.name : "Üres"}</div>
+                <div className="player-slot">{slot.tacticalPosition}</div>
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              <PlayerTooltip player={player} />
+            </div>
+          );
+        })}
+      </div>
+
+      <PlayerGroup title="Cserepad" players={benchPlayers} />
+      <PlayerGroup title="Tartalékok" players={reservePlayers} />
     </div>
   );
 }

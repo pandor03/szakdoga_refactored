@@ -4,45 +4,7 @@ import { useGameStore } from "../store/gameStore";
 import { useScreenStore } from "../store/screenStore";
 import LineupPitch from "../components/LineupPitch";
 import SquadSummary from "../components/SquadSummary";
-import LineupControls from "../components/LineupControls";
 import SquadPlayerList from "../components/SquadPlayerList";
-
-const SLOT_COMPATIBILITY = {
-  GK: ["GK"],
-  LB: ["LB", "RB", "CB", "CDM", "CM", "LW"],
-  CB: ["CB", "LB", "RB", "CDM", "CM"],
-  RB: ["RB", "LB", "CB", "CDM", "CM", "RW"],
-  CDM: ["CDM", "CM", "CB", "CAM", "LB", "RB"],
-  CM: ["CM", "CDM", "CAM", "LW", "RW", "ST"],
-  CAM: ["CAM", "CM", "ST", "LW", "RW", "CDM"],
-  LW: ["LW", "RW", "CAM", "ST", "CM"],
-  RW: ["RW", "LW", "CAM", "ST", "CM"],
-  ST: ["ST", "CAM", "LW", "RW", "CM"],
-};
-
-const FORMATION_OPTIONS = [
-  "4-3-3",
-  "4-2-3-1",
-  "4-4-2",
-  "4-1-2-1-2",
-  "3-5-2",
-];
-
-const getFilteredPlayersForSlot = (allPlayers, slot, lineupState) => {
-  const allowedPositions = SLOT_COMPATIBILITY[slot.tacticalPosition] || [];
-
-  const selectedPlayerIds = Object.entries(lineupState)
-    .filter(([slotId]) => slotId !== slot.slotId)
-    .map(([, playerId]) => playerId)
-    .filter(Boolean);
-
-  return allPlayers.filter((player) => {
-    const isCompatible = allowedPositions.includes(player.position);
-    const isAlreadySelected = selectedPlayerIds.includes(player.id);
-
-    return isCompatible && !isAlreadySelected;
-  });
-};
 
 export default function SquadPage() {
   const activeSaveId = useGameStore((state) => state.activeSaveId);
@@ -64,8 +26,20 @@ export default function SquadPage() {
     loadSquadScreen(activeSaveId).catch(() => {});
   }, [activeSaveId, loadSquadScreen]);
 
+  const lineupSlots = squadScreen?.lineup?.preview || [];
+  const benchPlayers = squadScreen?.lineup?.bench || [];
+  const reservePlayers = squadScreen?.lineup?.reserve || [];
+
+  const starters =
+    lineupSlots.map((slot) => slot.player).filter(Boolean) || [];
+
+  const allPlayers = [...starters, ...benchPlayers, ...reservePlayers];
+
+  const currentFormation =
+    squadScreen?.team?.formation || squadScreen?.lineup?.formation || "4-3-3";
+
   useEffect(() => {
-    if (!squadScreen?.lineup?.preview) return;
+    if (!lineupSlots.length) return;
 
     const initial = {};
 
@@ -76,73 +50,43 @@ export default function SquadPage() {
     setLineupState(initial);
   }, [squadScreen]);
 
-  const players =
-    squadScreen?.lineup?.bench?.concat(squadScreen?.lineup?.reserve || []) ||
-    [];
-
-  const starters =
-    squadScreen?.lineup?.preview
-      ?.map((slot) => slot.player)
-      .filter(Boolean) || [];
-
-  const allPlayers = [...starters, ...players];
-
-  const lineupSlots = squadScreen?.lineup?.preview || [];
-
-  const currentFormation =
-    squadScreen?.team?.formation || squadScreen?.lineup?.formation || "4-3-3";
-
-  const selectedPlayerIds = Object.values(lineupState).filter(Boolean);
-
-  const emptySlotCount = lineupSlots.filter(
-    (slot) => !lineupState[slot.slotId]
-  ).length;
-
-  const duplicatePlayerCount =
-    selectedPlayerIds.length - new Set(selectedPlayerIds).size;
-
-  const isLineupValid =
-    emptySlotCount === 0 &&
-    selectedPlayerIds.length === lineupSlots.length &&
-    duplicatePlayerCount === 0;
-
-  const handleChange = (slotId, playerId) => {
-    setLineupState((prev) => ({
-      ...prev,
-      [slotId]: playerId,
-    }));
-  };
-
-  const handleSlotSwap = (sourceSlotId, targetSlotId) => {
-    setLineupState((prev) => ({
-      ...prev,
-      [sourceSlotId]: prev[targetSlotId] || "",
-      [targetSlotId]: prev[sourceSlotId] || "",
-    }));
-  };
-
-  const handleSave = async () => {
-    const starters = Object.entries(lineupState)
+  const persistLineup = async (nextLineupState) => {
+    const startersPayload = Object.entries(nextLineupState)
       .filter(([, playerId]) => playerId)
       .map(([lineupSlot, playerId]) => ({
         playerId,
         lineupSlot,
       }));
 
-    const starterIds = starters.map((starter) => starter.playerId);
+    if (startersPayload.length !== lineupSlots.length) {
+      return;
+    }
 
-    const benchPlayerIds =
-      squadScreen?.lineup?.bench
-        ?.map((player) => player.id)
-        .filter((id) => !starterIds.includes(id)) || [];
+    const starterIds = startersPayload.map((starter) => starter.playerId);
+
+    const benchPlayerIds = benchPlayers
+      .map((player) => player.id)
+      .filter((id) => !starterIds.includes(id));
 
     const payload = {
       formation: currentFormation,
-      starters,
+      starters: startersPayload,
       benchPlayerIds,
     };
 
     await saveLineup(activeSaveId, payload).catch(() => {});
+  };
+
+  const handleSlotSwap = async (sourceSlotId, targetSlotId) => {
+    const nextLineupState = {
+      ...lineupState,
+      [sourceSlotId]: lineupState[targetSlotId] || "",
+      [targetSlotId]: lineupState[sourceSlotId] || "",
+    };
+
+    setLineupState(nextLineupState);
+
+    await persistLineup(nextLineupState);
   };
 
   const handleAutoPick = async () => {
@@ -150,6 +94,8 @@ export default function SquadPage() {
   };
 
   const handleFormationChange = async (formation) => {
+    if (formation === currentFormation) return;
+
     await changeFormation(activeSaveId, formation).catch(() => {});
   };
 
@@ -188,47 +134,20 @@ export default function SquadPage() {
                 slots={lineupSlots}
                 lineupState={lineupState}
                 allPlayers={allPlayers}
+                benchPlayers={benchPlayers}
+                reservePlayers={reservePlayers}
                 onSlotSwap={handleSlotSwap}
+                isUpdating={isUpdating}
               />
-
-              {lineupSlots.map((slot) => (
-                <div key={slot.slotId} className="table-row">
-                  <span>
-                    {slot.slotId} - {slot.tacticalPosition}
-                  </span>
-
-                  <select
-                    value={lineupState[slot.slotId] || ""}
-                    disabled={isUpdating}
-                    onChange={(e) => handleChange(slot.slotId, e.target.value)}
-                  >
-                    <option value="">-- üres --</option>
-
-                    {getFilteredPlayersForSlot(allPlayers, slot, lineupState).map(
-                      (player) => (
-                        <option key={player.id} value={player.id}>
-                          {player.name} ({player.position}) | OVR:{" "}
-                          {player.overall}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-              ))}
             </div>
           </div>
 
           <div className="squad-side-column">
-            <SquadSummary squadScreen={squadScreen} />
-
-            <LineupControls
+            <SquadSummary
+              squadScreen={squadScreen}
               currentFormation={currentFormation}
               isUpdating={isUpdating}
-              isLineupValid={isLineupValid}
-              emptySlotCount={emptySlotCount}
-              duplicatePlayerCount={duplicatePlayerCount}
               onFormationChange={handleFormationChange}
-              onSave={handleSave}
               onAutoPick={handleAutoPick}
             />
           </div>
