@@ -1,62 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import GameNav from "../components/GameNav";
 import { useGameStore } from "../store/gameStore";
 import { useScreenStore } from "../store/screenStore";
-
-const POSITION_OPTIONS = [
-  "",
-  "GK",
-  "LB",
-  "CB",
-  "RB",
-  "CDM",
-  "CM",
-  "CAM",
-  "LW",
-  "RW",
-  "ST",
-];
-
-const ROLE_OPTIONS = [
-  { value: "starter", label: "Kezdő" },
-  { value: "bench", label: "Pad" },
-  { value: "reserve", label: "Tartalék" },
-];
-
-const getPlayersFromSquadScreen = (squadScreen) => {
-  if (!squadScreen?.lineup) return [];
-
-  const starters =
-    squadScreen.lineup.preview
-      ?.map((slot) =>
-        slot.player
-          ? {
-              ...slot.player,
-              displaySlot: slot.slotId,
-              tacticalPosition: slot.tacticalPosition,
-            }
-          : null
-      )
-      .filter(Boolean) ?? [];
-
-  const bench = squadScreen.lineup.bench ?? [];
-  const reserve = squadScreen.lineup.reserve ?? [];
-
-  const playersById = new Map();
-
-  [...starters, ...bench, ...reserve].forEach((player) => {
-    playersById.set(player.id, player);
-  });
-
-  return Array.from(playersById.values()).sort((a, b) => {
-    if (a.role !== b.role) {
-      const roleOrder = { starter: 1, bench: 2, reserve: 3 };
-      return (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
-    }
-
-    return b.overall - a.overall;
-  });
-};
 
 export default function SquadPage() {
   const activeSaveId = useGameStore((state) => state.activeSaveId);
@@ -65,64 +10,116 @@ export default function SquadPage() {
   const isLoading = useScreenStore((state) => state.isLoadingSquadScreen);
   const error = useScreenStore((state) => state.squadScreenError);
 
-  const isUpdatingSquadPlayer = useScreenStore(
+  const loadSquadScreen = useScreenStore((state) => state.loadSquadScreen);
+  const saveLineup = useScreenStore((state) => state.saveLineup);
+  const autoPickLineup = useScreenStore((state) => state.autoPickLineup);
+
+  const isUpdating = useScreenStore(
     (state) => state.isUpdatingSquadPlayer
   );
 
-  const loadSquadScreen = useScreenStore((state) => state.loadSquadScreen);
-  const setPlayerRole = useScreenStore((state) => state.setPlayerRole);
-  const setPlayerLineupPosition = useScreenStore(
-    (state) => state.setPlayerLineupPosition
-  );
+  const SLOT_COMPATIBILITY = {
+    GK: ["GK"],
+    LB: ["LB", "RB", "CB", "CDM", "CM", "LW"],
+    CB: ["CB", "LB", "RB", "CDM", "CM"],
+    RB: ["RB", "LB", "CB", "CDM", "CM", "RW"],
+    CDM: ["CDM", "CM", "CB", "CAM", "LB", "RB"],
+    CM: ["CM", "CDM", "CAM", "LW", "RW", "ST"],
+    CAM: ["CAM", "CM", "ST", "LW", "RW", "CDM"],
+    LW: ["LW", "RW", "CAM", "ST", "CM"],
+    RW: ["RW", "LW", "CAM", "ST", "CM"],
+    ST: ["ST", "CAM", "LW", "RW", "CM"],
+  };
+
+  const getFilteredPlayersForSlot = (allPlayers, slot, lineupState) => {
+    const allowedPositions = SLOT_COMPATIBILITY[slot.tacticalPosition] || [];
+
+    const selectedPlayerIds = Object.entries(lineupState)
+      .filter(([slotId]) => slotId !== slot.slotId)
+      .map(([, playerId]) => playerId)
+      .filter(Boolean);
+
+    return allPlayers.filter((player) => {
+      const isCompatible = allowedPositions.includes(player.position);
+      const isAlreadySelected = selectedPlayerIds.includes(player.id);
+
+      return isCompatible && !isAlreadySelected;
+    });
+  };
+
+  const [lineupState, setLineupState] = useState({});
 
   useEffect(() => {
     loadSquadScreen(activeSaveId).catch(() => {});
-  }, [activeSaveId, loadSquadScreen]);
+  }, [activeSaveId]);
 
-  const handleRoleChange = async (playerId, role) => {
-    await setPlayerRole(activeSaveId, playerId, role).catch(() => {});
+  useEffect(() => {
+    if (!squadScreen?.lineup?.preview) return;
+
+    const initial = {};
+    squadScreen.lineup.preview.forEach((slot) => {
+      initial[slot.slotId] = slot.player?.id || "";
+    });
+
+    setLineupState(initial);
+  }, [squadScreen]);
+
+  const players =
+    squadScreen?.lineup?.bench
+      ?.concat(squadScreen?.lineup?.reserve || []) || [];
+
+  const starters =
+    squadScreen?.lineup?.preview
+      ?.map((slot) => slot.player)
+      .filter(Boolean) || [];
+
+  const allPlayers = [...starters, ...players];
+
+  const handleChange = (slotId, playerId) => {
+    setLineupState((prev) => ({
+      ...prev,
+      [slotId]: playerId,
+    }));
   };
 
-  const handlePositionChange = async (playerId, lineupPosition) => {
-    await setPlayerLineupPosition(
-      activeSaveId,
-      playerId,
-      lineupPosition
-    ).catch(() => {});
+  const handleSave = async () => {
+    const starters = Object.entries(lineupState)
+      .filter(([, playerId]) => playerId)
+      .map(([lineupSlot, playerId]) => ({
+        playerId,
+        lineupSlot,
+      }));
+
+    const starterIds = starters.map((starter) => starter.playerId);
+
+    const benchPlayerIds =
+      squadScreen?.lineup?.bench
+        ?.map((player) => player.id)
+        .filter((id) => !starterIds.includes(id)) || [];
+
+    const payload = {
+      formation: squadScreen.team?.formation || squadScreen.lineup?.formation || "4-3-3",
+      starters,
+      benchPlayerIds,
+    };
+
+    await saveLineup(activeSaveId, payload).catch(() => {});
   };
 
-  const players = getPlayersFromSquadScreen(squadScreen);
+  const handleAutoPick = async () => {
+    await autoPickLineup(activeSaveId).catch(() => {});
+  };
 
   if (isLoading) {
-    return (
-      <div className="page-shell">
-        <div className="page-container">
-          <p>Keret betöltése...</p>
-        </div>
-      </div>
-    );
+    return <p>Keret betöltése...</p>;
   }
 
   if (error) {
-    return (
-      <div className="page-shell">
-        <div className="page-container">
-          <p className="error-text">{error}</p>
-          <GameNav />
-        </div>
-      </div>
-    );
+    return <p>{error}</p>;
   }
 
   if (!squadScreen) {
-    return (
-      <div className="page-shell">
-        <div className="page-container">
-          <p>Nincs keret adat.</p>
-          <GameNav />
-        </div>
-      </div>
-    );
+    return <p>Nincs adat</p>;
   }
 
   return (
@@ -131,95 +128,53 @@ export default function SquadPage() {
         <div className="top-row">
           <div>
             <h1>Keret</h1>
-            <p className="muted-text">
+            <p>
               {squadScreen.team?.name} ({squadScreen.team?.shortName})
             </p>
           </div>
-
           <GameNav />
         </div>
 
-        <div className="dashboard-grid">
-          <section className="card">
-            <h2>Csapat összegzés</h2>
-            <p>Keret méret: {squadScreen.squad?.squadSize}</p>
-            <p>Kezdők: {squadScreen.squad?.starterCount}</p>
-            <p>Pad: {squadScreen.squad?.benchCount}</p>
-            <p>Tartalék: {squadScreen.squad?.reserveCount}</p>
-            <p>Átlag életkor: {squadScreen.squad?.averageAge}</p>
-            <p>Átlag overall: {squadScreen.squad?.averageOverall}</p>
-            <p>Piaci érték: {squadScreen.squad?.totalMarketValue}</p>
-          </section>
+        <div className="card">
+          <h2>Kezdő (Formation alapú)</h2>
 
-          <section className="card">
-            <h2>Overall</h2>
-            <p>Teljes csapat: {squadScreen.overall?.lineupOverall}</p>
-            <p>Védelem: {squadScreen.overall?.defense}</p>
-            <p>Középpálya: {squadScreen.overall?.midfield}</p>
-            <p>Támadás: {squadScreen.overall?.attack}</p>
-          </section>
+          {squadScreen.lineup.preview.map((slot) => (
+            <div key={slot.slotId} className="table-row">
+              <span>
+                {slot.slotId} - {slot.tacticalPosition}
+              </span>
 
-          <section className="card">
-            <h2>Kezdő előnézet</h2>
+              <select
+                value={lineupState[slot.slotId] || ""}
+                disabled={isUpdating}
+                onChange={(e) =>
+                  handleChange(slot.slotId, e.target.value)
+                }
+              >
+                <option value="">-- üres --</option>
 
-            {squadScreen.lineup?.preview?.map((slot) => (
-              <div key={slot.slotId} className="table-row">
-                <span>
-                  {slot.tacticalPosition} -{" "}
-                  {slot.player?.name || "Üres pozíció"}
-                </span>
+                {getFilteredPlayersForSlot(allPlayers, slot, lineupState).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.position}) | OVR: {p.overall}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
 
-                <strong>{slot.player?.effectiveOverall ?? "-"}</strong>
-              </div>
-            ))}
-          </section>
+          <div style={{ marginTop: "10px" }}>
+            <button onClick={handleSave} disabled={isUpdating}>
+              Mentés
+            </button>
 
-          <section className="card">
-            <h2>Keret kezelés</h2>
-
-            {players.length ? (
-              players.map((player) => (
-                <div key={player.id} className="table-row">
-                  <span>
-                    {player.name} ({player.position}) | OVR: {player.overall}
-                    {player.displaySlot ? ` | Slot: ${player.displaySlot}` : ""}
-                  </span>
-
-                  <div className="button-row">
-                    <select
-                      value={player.role}
-                      disabled={isUpdatingSquadPlayer}
-                      onChange={(e) =>
-                        handleRoleChange(player.id, e.target.value)
-                      }
-                    >
-                      {ROLE_OPTIONS.map((role) => (
-                        <option key={role.value} value={role.value}>
-                          {role.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={player.lineupPosition ?? ""}
-                      disabled={isUpdatingSquadPlayer}
-                      onChange={(e) =>
-                        handlePositionChange(player.id, e.target.value)
-                      }
-                    >
-                      {POSITION_OPTIONS.map((position) => (
-                        <option key={position || "none"} value={position}>
-                          {position || "Nincs pozíció"}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p>Nincs játékos a keretben.</p>
-            )}
-          </section>
+            <button
+              onClick={handleAutoPick}
+              disabled={isUpdating}
+              style={{ marginLeft: "10px" }}
+            >
+              Auto pick
+            </button>
+          </div>
         </div>
       </div>
     </div>

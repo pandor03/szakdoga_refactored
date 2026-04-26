@@ -20,6 +20,28 @@ export const getStandingsScreen = async (saveId) => {
   return data;
 };
 
+export const getSelectedTeamLineup = async (saveId) => {
+  const { data } = await http.get(
+    `/squad/saves/${saveId}/selected-team/lineup`
+  );
+  return data;
+};
+
+export const saveSelectedTeamLineup = async (saveId, payload) => {
+  const { data } = await http.put(
+    `/squad/saves/${saveId}/selected-team/lineup`,
+    payload
+  );
+  return data;
+};
+
+export const autoPickSelectedTeamLineup = async (saveId) => {
+  const { data } = await http.post(
+    `/squad/saves/${saveId}/selected-team/lineup/auto-pick`
+  );
+  return data;
+};
+
 export const playMyNextMatch = async (saveId, payload) => {
   const { data } = await http.post(
     `/users/saves/${saveId}/selected-team/play-next-match`,

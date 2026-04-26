@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  autoPickSelectedTeamLineup,
   buyTransferPlayer,
   completeCurrentRound,
   getFixturesScreen,
@@ -7,6 +8,7 @@ import {
   getStandingsScreen,
   getTransferScreen,
   playMyNextMatch,
+  saveSelectedTeamLineup,
   simulateCurrentRound,
   updatePlayerLineupPosition,
   updatePlayerRole,
@@ -400,6 +402,64 @@ export const useScreenStore = create((set, get) => ({
         squadScreenError: getErrorMessage(
           error,
           "Nem sikerült módosítani a játékos pozícióját."
+        ),
+      });
+
+      throw error;
+    }
+  },
+
+  saveLineup: async (saveId, payload) => {
+    set({
+      isUpdatingSquadPlayer: true,
+      squadScreenError: null,
+    });
+
+    try {
+      const result = await saveSelectedTeamLineup(saveId, payload);
+
+      await get().loadSquadScreen(saveId);
+
+      set({
+        isUpdatingSquadPlayer: false,
+      });
+
+      return result;
+    } catch (error) {
+      set({
+        isUpdatingSquadPlayer: false,
+        squadScreenError: getErrorMessage(
+          error,
+          "Nem sikerült menteni a felállást."
+        ),
+      });
+
+      throw error;
+    }
+  },
+
+  autoPickLineup: async (saveId) => {
+    set({
+      isUpdatingSquadPlayer: true,
+      squadScreenError: null,
+    });
+
+    try {
+      const result = await autoPickSelectedTeamLineup(saveId);
+
+      await get().loadSquadScreen(saveId);
+
+      set({
+        isUpdatingSquadPlayer: false,
+      });
+
+      return result;
+    } catch (error) {
+      set({
+        isUpdatingSquadPlayer: false,
+        squadScreenError: getErrorMessage(
+          error,
+          "Nem sikerült automatikusan összeállítani a kezdőt."
         ),
       });
 

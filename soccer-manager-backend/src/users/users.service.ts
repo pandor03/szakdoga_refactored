@@ -3879,70 +3879,168 @@ export class UsersService {
     formation: SupportedFormation,
   ) {
     const slots = getFormationSlots(formation);
-    const usedPlayerIds = new Set<string>();
 
-    const assignments: Array<{
+    type Assignment = {
       playerId: string;
       lineupSlot: string;
       tacticalPosition: PlayerPosition;
       multiplier: number;
       score: number;
-    }> = [];
+      isNaturalPosition: boolean;
+    };
 
-    const sortedSlots = [...slots].sort((a, b) => {
-      if (a.tacticalPosition === 'GK' && b.tacticalPosition !== 'GK') return -1;
-      if (a.tacticalPosition !== 'GK' && b.tacticalPosition === 'GK') return 1;
-      return 0;
-    });
+    type BestLineupResult = {
+      assignments: Assignment[];
+      totalScore: number;
+      naturalPositionCount: number;
+      averageMultiplier: number;
+    };
 
-    for (const slot of sortedSlots) {
+    const candidatesBySlot = slots.map((slot) => {
       const candidates = players
-        .filter((player) => !usedPlayerIds.has(player.id))
         .map((player) => {
           const multiplier = getPositionCompatibilityMultiplier(
             player.position as PlayerPosition,
             slot.tacticalPosition,
           );
 
+          const isNaturalPosition = player.position === slot.tacticalPosition;
+          const naturalPositionBonus = isNaturalPosition ? 1000 : 0;
+          const outOfPositionPenalty = !isNaturalPosition
+            ? (1 - multiplier) * 300
+            : 0;
+
+          const score =
+            player.overall * multiplier +
+            naturalPositionBonus -
+            outOfPositionPenalty;
+
           return {
             player,
+            slot,
             multiplier,
-            score: player.overall * multiplier,
+            score,
+            isNaturalPosition,
           };
         })
         .filter((item) => item.multiplier > 0)
         .sort((a, b) => {
-          if (b.score !== a.score) {
-            return b.score - a.score;
-          }
-
-          if (b.multiplier !== a.multiplier) {
-            return b.multiplier - a.multiplier;
-          }
-
+          if (b.score !== a.score) return b.score - a.score;
+          if (b.multiplier !== a.multiplier) return b.multiplier - a.multiplier;
           return b.player.overall - a.player.overall;
         });
 
-      const bestCandidate = candidates[0];
+      return {
+        slot,
+        candidates,
+      };
+    });
 
-      if (!bestCandidate) {
-        throw new BadRequestException(
-          `Could not find a valid player for slot ${slot.slotId} (${slot.tacticalPosition})`,
-        );
-      }
+    const impossibleSlot = candidatesBySlot.find(
+      (item) => item.candidates.length === 0,
+    );
 
-      usedPlayerIds.add(bestCandidate.player.id);
-
-      assignments.push({
-        playerId: bestCandidate.player.id,
-        lineupSlot: slot.slotId,
-        tacticalPosition: slot.tacticalPosition,
-        multiplier: bestCandidate.multiplier,
-        score: bestCandidate.score,
-      });
+    if (impossibleSlot) {
+      throw new BadRequestException(
+        `Could not find a valid player for slot ${impossibleSlot.slot.slotId} (${impossibleSlot.slot.tacticalPosition})`,
+      );
     }
 
-    return assignments;
+    const orderedSlots = [...candidatesBySlot].sort((a, b) => {
+      if (a.slot.tacticalPosition === 'GK') return -1;
+      if (b.slot.tacticalPosition === 'GK') return 1;
+
+      return a.candidates.length - b.candidates.length;
+    });
+
+    const bestResultRef: { current: BestLineupResult | null } = {
+      current: null,
+    };
+
+    const search = (
+      slotIndex: number,
+      usedPlayerIds: Set<string>,
+      assignments: Assignment[],
+    ) => {
+      if (slotIndex === orderedSlots.length) {
+        const totalScore = assignments.reduce(
+          (sum, item) => sum + item.score,
+          0,
+        );
+
+        const naturalPositionCount = assignments.filter(
+          (item) => item.isNaturalPosition,
+        ).length;
+
+        const averageMultiplier =
+          assignments.reduce((sum, item) => sum + item.multiplier, 0) /
+          assignments.length;
+
+        const currentBest = bestResultRef.current;
+
+        const isBetter =
+          !currentBest ||
+          totalScore > currentBest.totalScore ||
+          (totalScore === currentBest.totalScore &&
+            naturalPositionCount > currentBest.naturalPositionCount) ||
+          (totalScore === currentBest.totalScore &&
+            naturalPositionCount === currentBest.naturalPositionCount &&
+            averageMultiplier > currentBest.averageMultiplier);
+
+        if (isBetter) {
+          bestResultRef.current = {
+            assignments: assignments.map((item) => ({ ...item })),
+            totalScore,
+            naturalPositionCount,
+            averageMultiplier,
+          };
+        }
+
+        return;
+      }
+
+      const currentSlot = orderedSlots[slotIndex];
+
+      for (const candidate of currentSlot.candidates) {
+        if (usedPlayerIds.has(candidate.player.id)) {
+          continue;
+        }
+
+        usedPlayerIds.add(candidate.player.id);
+
+        assignments.push({
+          playerId: candidate.player.id,
+          lineupSlot: candidate.slot.slotId,
+          tacticalPosition: candidate.slot.tacticalPosition,
+          multiplier: candidate.multiplier,
+          score: candidate.score,
+          isNaturalPosition: candidate.isNaturalPosition,
+        });
+
+        search(slotIndex + 1, usedPlayerIds, assignments);
+
+        assignments.pop();
+        usedPlayerIds.delete(candidate.player.id);
+      }
+    };
+
+    search(0, new Set<string>(), []);
+
+    const finalResult = bestResultRef.current;
+
+    if (!finalResult) {
+      throw new BadRequestException(
+        'Could not build a valid lineup with the current squad',
+      );
+    }
+
+    return finalResult.assignments.map((item) => ({
+      playerId: item.playerId,
+      lineupSlot: item.lineupSlot,
+      tacticalPosition: item.tacticalPosition,
+      multiplier: item.multiplier,
+      score: item.score,
+    }));
   }
 
   private async applySelectedTeamLineupState(
