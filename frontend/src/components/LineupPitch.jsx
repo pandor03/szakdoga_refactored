@@ -29,9 +29,7 @@ const MIDFIELD_POSITIONS = ["CM", "CDM", "CAM"];
 const getFitClass = (player, slot) => {
   if (!player) return "";
 
-  if (player.position === slot.tacticalPosition) {
-    return "fit-good";
-  }
+  if (player.position === slot.tacticalPosition) return "fit-good";
 
   if (
     MIDFIELD_POSITIONS.includes(player.position) &&
@@ -47,10 +45,31 @@ export default function LineupPitch({
   slots = [],
   lineupState = {},
   allPlayers = [],
+  onSlotSwap,
 }) {
   const getPlayerById = (playerId) => {
     if (!playerId) return null;
     return allPlayers.find((player) => player.id === playerId) || null;
+  };
+
+  const handleDragStart = (event, sourceSlotId) => {
+    event.dataTransfer.setData("text/plain", sourceSlotId);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (event) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (event, targetSlotId) => {
+    event.preventDefault();
+
+    const sourceSlotId = event.dataTransfer.getData("text/plain");
+
+    if (!sourceSlotId || sourceSlotId === targetSlotId) return;
+
+    onSlotSwap?.(sourceSlotId, targetSlotId);
   };
 
   return (
@@ -67,30 +86,32 @@ export default function LineupPitch({
         };
 
         const player = getPlayerById(lineupState[slot.slotId]);
+        const fitClass = getFitClass(player, slot);
 
         return (
           <div
             key={slot.slotId}
             className={`pitch-player-card ${
-              player ? `filled-player-card ${getFitClass(player, slot)}` : "empty-player-card"
+              player ? "filled-player-card" : "empty-player-card"
             }`}
+            draggable={Boolean(player)}
+            onDragStart={(event) => handleDragStart(event, slot.slotId)}
+            onDragOver={handleDragOver}
+            onDrop={(event) => handleDrop(event, slot.slotId)}
             style={{
               top: position.top,
               left: position.left,
             }}
           >
             {player && (
-              <span className="player-ovr">
+              <span className={`player-ovr ${fitClass}`}>
                 {player.overall}
               </span>
             )}
 
-            <div className="player-name">
-              {player ? player.name : "Üres"}
-            </div>
-
-            <div className="player-slot">
-              {slot.tacticalPosition}
+            <div className="player-card-content">
+              <div className="player-name">{player ? player.name : "Üres"}</div>
+              <div className="player-slot">{slot.tacticalPosition}</div>
             </div>
 
             {player && (

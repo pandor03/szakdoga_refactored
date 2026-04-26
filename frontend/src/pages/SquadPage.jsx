@@ -113,6 +113,14 @@ export default function SquadPage() {
     }));
   };
 
+  const handleSlotSwap = (sourceSlotId, targetSlotId) => {
+    setLineupState((prev) => ({
+      ...prev,
+      [sourceSlotId]: prev[targetSlotId] || "",
+      [targetSlotId]: prev[sourceSlotId] || "",
+    }));
+  };
+
   const handleSave = async () => {
     const starters = Object.entries(lineupState)
       .filter(([, playerId]) => playerId)
@@ -180,6 +188,7 @@ export default function SquadPage() {
                 slots={lineupSlots}
                 lineupState={lineupState}
                 allPlayers={allPlayers}
+                onSlotSwap={handleSlotSwap}
               />
 
               {lineupSlots.map((slot) => (
