@@ -14,8 +14,10 @@ export default function SquadSummary({
   onAutoPick,
 }) {
   return (
-    <div className="card squad-summary-card">
-      <h2>Csapat összegzés</h2>
+    <div className="card squad-summary-card squad-command-card">
+      <span className="squad-card-kicker">Club overview</span>
+
+      <h2>{squadScreen.team?.shortName}</h2>
 
       <div className="summary-stat-row">
         <span>Keret méret</span>
@@ -33,8 +35,6 @@ export default function SquadSummary({
       </div>
 
       <div className="summary-divider" />
-
-      <h3>Felállás vezérlés</h3>
 
       <label>Formáció</label>
 

@@ -41,7 +41,13 @@ const getFitClass = (player, slot) => {
   return "fit-bad";
 };
 
-function PlayerTooltip({ player }) {
+const formatValue = (value) => {
+  if (!value) return "-";
+
+  return new Intl.NumberFormat("hu-HU").format(value);
+};
+
+function PlayerTooltip({ player, effectiveOverall }) {
   if (!player) return null;
 
   return (
@@ -50,7 +56,13 @@ function PlayerTooltip({ player }) {
 
       <p>
         {player.position} | OVR: {player.overall}
+        {effectiveOverall ? ` | Poszt OVR: ${effectiveOverall}` : ""}
       </p>
+
+      <div className="tooltip-stat-row">
+        <span>Érték</span>
+        <strong>{formatValue(player.marketValue)}</strong>
+      </div>
 
       <div className="tooltip-stat-row">
         <span>Pace</span>
@@ -85,9 +97,25 @@ function PlayerTooltip({ player }) {
   );
 }
 
-function MiniPlayerCard({ player }) {
+function MiniPlayerCard({ player, groupType, onDragStart, onDropToPlayer }) {
   return (
-    <div className="bench-player-card">
+    <div
+      className="bench-player-card"
+      draggable
+      onDragStart={(event) =>
+        onDragStart(event, {
+          type: groupType,
+          playerId: player.id,
+        })
+      }
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) =>
+        onDropToPlayer(event, {
+          type: groupType,
+          playerId: player.id,
+        })
+      }
+    >
       <span className="bench-player-ovr">{player.overall}</span>
 
       <strong>{player.name}</strong>
@@ -98,9 +126,20 @@ function MiniPlayerCard({ player }) {
   );
 }
 
-function PlayerGroup({ title, players }) {
+function PlayerGroup({
+  title,
+  type,
+  players,
+  onDragStart,
+  onDropToPlayer,
+  onDropToGroup,
+}) {
   return (
-    <div className="pitch-player-group">
+    <div
+      className="pitch-player-group"
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => onDropToGroup(event, type)}
+    >
       <div className="pitch-player-group-header">
         <h3>{title}</h3>
         <span>{players.length}</span>
@@ -109,7 +148,13 @@ function PlayerGroup({ title, players }) {
       {players.length ? (
         <div className="bench-card-grid">
           {players.map((player) => (
-            <MiniPlayerCard key={player.id} player={player} />
+            <MiniPlayerCard
+              key={player.id}
+              player={player}
+              groupType={type}
+              onDragStart={onDragStart}
+              onDropToPlayer={onDropToPlayer}
+            />
           ))}
         </div>
       ) : (
@@ -125,7 +170,7 @@ export default function LineupPitch({
   allPlayers = [],
   benchPlayers = [],
   reservePlayers = [],
-  onSlotSwap,
+  onPlayerMove,
   isUpdating = false,
 }) {
   const getPlayerById = (playerId) => {
@@ -133,24 +178,63 @@ export default function LineupPitch({
     return allPlayers.find((player) => player.id === playerId) || null;
   };
 
-  const handleDragStart = (event, sourceSlotId) => {
-    event.dataTransfer.setData("text/plain", sourceSlotId);
+  const handleDragStart = (event, source) => {
+    if (isUpdating) return;
+
+    event.dataTransfer.setData("application/json", JSON.stringify(source));
     event.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDragOver = (event) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
+  const getDragSource = (event) => {
+    try {
+      const raw = event.dataTransfer.getData("application/json");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
   };
 
-  const handleDrop = (event, targetSlotId) => {
+  const handleDropToSlot = (event, targetSlotId) => {
     event.preventDefault();
 
-    const sourceSlotId = event.dataTransfer.getData("text/plain");
+    if (isUpdating) return;
 
-    if (!sourceSlotId || sourceSlotId === targetSlotId || isUpdating) return;
+    const source = getDragSource(event);
 
-    onSlotSwap?.(sourceSlotId, targetSlotId);
+    if (!source) return;
+
+    onPlayerMove?.(source, {
+      type: "slot",
+      id: targetSlotId,
+    });
+  };
+
+  const handleDropToPlayer = (event, target) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isUpdating) return;
+
+    const source = getDragSource(event);
+
+    if (!source) return;
+
+    onPlayerMove?.(source, target);
+  };
+
+  const handleDropToGroup = (event, groupType) => {
+    event.preventDefault();
+
+    if (isUpdating) return;
+
+    const source = getDragSource(event);
+
+    if (!source) return;
+
+    onPlayerMove?.(source, {
+      type: groupType,
+      playerId: null,
+    });
   };
 
   return (
@@ -159,55 +243,85 @@ export default function LineupPitch({
         <div className="lineup-inline-loading">Felállás frissítése...</div>
       )}
 
-      <div className="lineup-pitch">
-        <div className="pitch-line center-line" />
-        <div className="pitch-circle" />
-        <div className="pitch-box top-box" />
-        <div className="pitch-box bottom-box" />
+      <div className="lineup-pitch-content">
+        <div className="lineup-pitch">
+          <div className="pitch-line center-line" />
+          <div className="pitch-circle" />
+          <div className="pitch-box top-box" />
+          <div className="pitch-box bottom-box" />
 
-        {slots.map((slot) => {
-          const position = SLOT_POSITIONS[slot.slotId] || {
-            top: "50%",
-            left: "50%",
-          };
+          {slots.map((slot) => {
+            const position = SLOT_POSITIONS[slot.slotId] || {
+              top: "50%",
+              left: "50%",
+            };
 
-          const player = getPlayerById(lineupState[slot.slotId]);
-          const fitClass = getFitClass(player, slot);
+            const player = getPlayerById(lineupState[slot.slotId]);
+            const fitClass = getFitClass(player, slot);
+            const displayedOverall = player?.effectiveOverall ?? player?.overall;
 
-          return (
-            <div
-              key={slot.slotId}
-              className={`pitch-player-card ${
-                player ? "filled-player-card" : "empty-player-card"
-              }`}
-              draggable={Boolean(player) && !isUpdating}
-              onDragStart={(event) => handleDragStart(event, slot.slotId)}
-              onDragOver={handleDragOver}
-              onDrop={(event) => handleDrop(event, slot.slotId)}
-              style={{
-                top: position.top,
-                left: position.left,
-              }}
-            >
-              {player && (
-                <span className={`player-ovr ${fitClass}`}>
-                  {player.overall}
-                </span>
-              )}
+            return (
+              <div
+                key={slot.slotId}
+                className={`pitch-player-card ${
+                  player ? "filled-player-card" : "empty-player-card"
+                }`}
+                draggable={Boolean(player) && !isUpdating}
+                onDragStart={(event) =>
+                  handleDragStart(event, {
+                    type: "slot",
+                    id: slot.slotId,
+                  })
+                }
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => handleDropToSlot(event, slot.slotId)}
+                style={{
+                  top: position.top,
+                  left: position.left,
+                }}
+              >
+                {player && (
+                  <span className={`player-ovr ${fitClass}`}>
+                    {displayedOverall}
+                  </span>
+                )}
 
-              <div className="player-card-content">
-                <div className="player-name">{player ? player.name : "Üres"}</div>
-                <div className="player-slot">{slot.tacticalPosition}</div>
+                <div className="player-card-content">
+                  <div className="player-name">
+                    {player ? player.name : "Üres"}
+                  </div>
+                  <div className="player-slot">{slot.tacticalPosition}</div>
+                </div>
+
+                <PlayerTooltip
+                  player={player}
+                  effectiveOverall={displayedOverall}
+                />
               </div>
+            );
+          })}
+        </div>
 
-              <PlayerTooltip player={player} />
-            </div>
-          );
-        })}
+        <div className="pitch-side-groups">
+          <PlayerGroup
+            title="Cserepad"
+            type="bench"
+            players={benchPlayers}
+            onDragStart={handleDragStart}
+            onDropToPlayer={handleDropToPlayer}
+            onDropToGroup={handleDropToGroup}
+          />
+
+          <PlayerGroup
+            title="Tartalékok"
+            type="reserve"
+            players={reservePlayers}
+            onDragStart={handleDragStart}
+            onDropToPlayer={handleDropToPlayer}
+            onDropToGroup={handleDropToGroup}
+          />
+        </div>
       </div>
-
-      <PlayerGroup title="Cserepad" players={benchPlayers} />
-      <PlayerGroup title="Tartalékok" players={reservePlayers} />
     </div>
   );
 }

@@ -8,6 +8,15 @@ function PlayerTooltip({ player }) {
       </p>
 
       <div className="tooltip-stat-row">
+        <span>Érték</span>
+        <strong>
+          {player.marketValue
+            ? new Intl.NumberFormat("hu-HU").format(player.marketValue)
+            : "-"}
+        </strong>
+      </div>
+
+      <div className="tooltip-stat-row">
         <span>Pace</span>
         <strong>{player.pace}</strong>
       </div>
