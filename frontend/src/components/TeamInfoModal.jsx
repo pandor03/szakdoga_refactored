@@ -42,8 +42,17 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
   }, [saveId, teamId]);
 
   const starters = [...players]
-    .filter((player) => player.role === "starter")
-    .sort((a, b) => (a.lineupSlot || "").localeCompare(b.lineupSlot || ""));
+    .filter(
+        (player) =>
+        player.role === "starter" ||
+        player.lineupSlot ||
+        player.lineupPosition
+    )
+    .sort((a, b) =>
+        (a.lineupSlot || a.lineupPosition || "").localeCompare(
+        b.lineupSlot || b.lineupPosition || ""
+        )
+    );
 
   const squadPlayers = [...players].sort((a, b) => {
     const roleDiff = (roleOrder[a.role] || 99) - (roleOrder[b.role] || 99);
@@ -106,7 +115,7 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
                         <div>
                           <strong>{player.name}</strong>
                           <p className="muted-text">
-                            {player.position} | {player.role}
+                            {player.position} | {player.role || "squad"}
                           </p>
                         </div>
 
