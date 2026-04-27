@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PageHero from "../components/PageHero";
+import EmptyState from "../components/EmptyState";
+import InlineLoader from "../components/InlineLoader";
 import { useAuthStore } from "../store/authStore";
 import { useGameStore } from "../store/gameStore";
 import { useSaveStore } from "../store/saveStore";
+
+const getProgressPercent = (save) => {
+  const played = save.progress?.playedFixtures ?? 0;
+  const total = save.progress?.totalFixtures ?? 0;
+
+  if (!total) return 0;
+
+  return Math.round((played / total) * 100);
+};
 
 export default function SaveSelectorPage() {
   const navigate = useNavigate();
@@ -46,8 +58,8 @@ export default function SaveSelectorPage() {
     } catch {}
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
+  const handleCreate = async (event) => {
+    event.preventDefault();
     clearSaveError();
 
     if (!createForm.name.trim()) return;
@@ -80,110 +92,135 @@ export default function SaveSelectorPage() {
   return (
     <div className="page-shell">
       <div className="page-container">
-        <div className="top-row">
-          <div>
-            <h1>Mentések</h1>
-            <p className="muted-text">
-              Bejelentkezve:{" "}
-              <strong>{user?.username || user?.email || "Felhasználó"}</strong>
-            </p>
-          </div>
-
-          <button onClick={handleLogout} className="secondary-btn">
+        <PageHero
+          kicker="Career Select"
+          title="Mentések"
+          subtitle={`Bejelentkezve: ${user?.username || user?.email || "Felhasználó"}`}
+        >
+          <button className="secondary-btn" onClick={handleLogout}>
             Kilépés
           </button>
-        </div>
+        </PageHero>
 
         {saveError && <p className="error-text">{saveError}</p>}
 
-        <div className="two-col">
-          <section className="card">
+        <div className="save-selector-layout">
+          <section className="card create-save-card">
+            <span className="game-page-kicker">New Career</span>
             <h2>Új mentés</h2>
 
             <form onSubmit={handleCreate} className="form-stack">
-              <input
-                type="text"
-                placeholder="Mentés neve"
-                value={createForm.name}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    name: e.target.value,
-                  }))
-                }
-              />
+              <label>
+                Mentés neve
+                <input
+                  type="text"
+                  placeholder="pl. Barcelona karrier"
+                  value={createForm.name}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                    }))
+                  }
+                />
+              </label>
 
-              <select
-                value={createForm.selectedTeamShortName}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({
-                    ...prev,
-                    selectedTeamShortName: e.target.value,
-                  }))
-                }
-              >
-                <option value="">Válassz csapatot</option>
+              <label>
+                Csapat
+                <select
+                  value={createForm.selectedTeamShortName}
+                  onChange={(event) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      selectedTeamShortName: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Válassz csapatot</option>
 
-                {teams.map((team) => (
-                  <option key={team.id} value={team.shortName}>
-                    {team.name} ({team.shortName})
-                  </option>
-                ))}
-              </select>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.shortName}>
+                      {team.name} ({team.shortName})
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <button type="submit" disabled={isCreatingSave}>
-                {isCreatingSave ? "Létrehozás..." : "Új mentés indítása"}
+                {isCreatingSave ? "Létrehozás..." : "Karrier indítása"}
               </button>
             </form>
           </section>
 
           <section className="card">
-            <h2>Meglévő mentések</h2>
+            <div className="section-heading-row">
+              <div>
+                <span className="game-page-kicker">Saved Careers</span>
+                <h2>Meglévő mentések</h2>
+              </div>
+            </div>
 
             {isInitialLoading ? (
-              <p>Betöltés...</p>
+              <InlineLoader text="Mentések betöltése..." />
             ) : saves.length === 0 ? (
-              <p>Még nincs mentésed.</p>
+              <EmptyState
+                title="Még nincs mentésed."
+                description="Indíts új karriert egy csapat kiválasztásával."
+              />
             ) : (
-              <div className="save-list">
-                {saves.map((save) => (
-                  <div key={save.id} className="save-card">
-                    <div>
-                      <h3>{save.name}</h3>
+              <div className="career-save-grid">
+                {saves.map((save) => {
+                  const progressPercent = getProgressPercent(save);
 
-                      <p>
-                        Csapat:{" "}
-                        <strong>{save.selectedTeam?.name || "Nincs"}</strong>
-                      </p>
+                  return (
+                    <div key={save.id} className="career-save-card">
+                      <div className="career-save-header">
+                        <div>
+                          <strong>{save.name}</strong>
+                          <p className="muted-text">
+                            {save.selectedTeam?.name || "Nincs csapat"}
+                          </p>
+                        </div>
 
-                      <p>Forduló: {save.currentRound}</p>
+                        <span
+                          className={`career-status-badge ${
+                            save.isFinished
+                              ? "career-status-finished"
+                              : "career-status-active"
+                          }`}
+                        >
+                          {save.isFinished ? "Befejezett" : "Folyamatban"}
+                        </span>
+                      </div>
 
-                      <p>
-                        Haladás: {save.progress?.playedFixtures ?? 0}/
-                        {save.progress?.totalFixtures ?? 0}
-                      </p>
+                      <div className="career-save-meta">
+                        <span>Forduló: {save.currentRound}</span>
+                        <span>
+                          {save.progress?.playedFixtures ?? 0}/
+                          {save.progress?.totalFixtures ?? 0} meccs
+                        </span>
+                      </div>
 
-                      <p>
-                        Állapot:{" "}
-                        {save.isFinished ? "Befejezett" : "Folyamatban"}
-                      </p>
+                      <div className="career-progress-bar">
+                        <div style={{ width: `${progressPercent}%` }} />
+                      </div>
+
+                      <div className="career-save-actions">
+                        <button onClick={() => handleContinue(save.id)}>
+                          Folytatás
+                        </button>
+
+                        <button
+                          onClick={() => handleDelete(save.id)}
+                          className="danger-btn"
+                          disabled={isDeletingSave}
+                        >
+                          {isDeletingSave ? "Törlés..." : "Törlés"}
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="save-actions">
-                      <button onClick={() => handleContinue(save.id)}>
-                        Folytatás
-                      </button>
-
-                      <button
-                        onClick={() => handleDelete(save.id)}
-                        className="danger-btn"
-                        disabled={isDeletingSave}
-                      >
-                        {isDeletingSave ? "Törlés..." : "Törlés"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

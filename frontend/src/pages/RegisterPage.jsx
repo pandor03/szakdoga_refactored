@@ -11,26 +11,29 @@ export default function RegisterPage() {
     username: "",
     password: "",
   });
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
+  const handleChange = (event) => {
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [event.target.name]: event.target.value,
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
     setError("");
     setSuccess("");
     setLoading(true);
 
     try {
       await register(form);
-      setSuccess("Sikeres regisztráció. Most jelentkezz be.");
+      setSuccess("Sikeres regisztráció. Átirányítás a bejelentkezéshez...");
+
       setTimeout(() => {
         navigate("/login");
       }, 700);
@@ -42,49 +45,76 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="page-shell">
-      <div className="card auth-card">
-        <h1>Regisztráció</h1>
+    <div className="auth-page-shell">
+      <div className="auth-layout">
+        <section className="auth-brand-panel">
+          <span className="game-page-kicker">New Career</span>
+          <h1>Kezdd el a menedzseri karriered.</h1>
+          <p>
+            Hozz létre fiókot, válassz csapatot, majd építsd fel a saját
+            futballmenedzser történeted.
+          </p>
 
-        <form onSubmit={handleSubmit} className="form-stack">
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
+          <div className="auth-feature-list">
+            <span>Csapatválasztás</span>
+            <span>Szezon mentések</span>
+            <span>Fejlődő játéklogika</span>
+          </div>
+        </section>
 
-          <input
-            type="text"
-            name="username"
-            placeholder="Felhasználónév"
-            value={form.username}
-            onChange={handleChange}
-            required
-          />
+        <section className="card auth-card auth-form-card">
+          <span className="game-page-kicker">Create account</span>
+          <h2>Regisztráció</h2>
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Jelszó"
-            value={form.password}
-            onChange={handleChange}
-            required
-          />
+          <form onSubmit={handleSubmit} className="form-stack">
+            <label>
+              Email
+              <input
+                type="email"
+                name="email"
+                placeholder="email@example.com"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
+            </label>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Regisztráció..." : "Regisztráció"}
-          </button>
-        </form>
+            <label>
+              Felhasználónév
+              <input
+                type="text"
+                name="username"
+                placeholder="manager_nev"
+                value={form.username}
+                onChange={handleChange}
+                required
+              />
+            </label>
 
-        {error && <p className="error-text">{error}</p>}
-        {success && <p className="success-text">{success}</p>}
+            <label>
+              Jelszó
+              <input
+                type="password"
+                name="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                required
+              />
+            </label>
 
-        <p className="muted-text">
-          Már van fiókod? <Link to="/login">Bejelentkezés</Link>
-        </p>
+            <button type="submit" disabled={loading}>
+              {loading ? "Regisztráció..." : "Fiók létrehozása"}
+            </button>
+          </form>
+
+          {error && <p className="error-text auth-message">{error}</p>}
+          {success && <p className="success-text auth-message">{success}</p>}
+
+          <p className="muted-text auth-switch-text">
+            Már van fiókod? <Link to="/login">Bejelentkezés</Link>
+          </p>
+        </section>
       </div>
     </div>
   );

@@ -1292,3 +1292,252 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+.save-selector-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.create-save-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.career-save-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.career-save-card {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.06);
+}
+
+.career-save-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.career-save-header strong {
+  font-size: 18px;
+}
+
+.career-save-header p {
+  margin: 6px 0 0;
+}
+
+.career-status-badge {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.career-status-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.career-status-finished {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.career-save-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 10px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.career-progress-bar {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.career-progress-bar div {
+  height: 100%;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.career-save-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .save-selector-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.auth-page-shell {
+  min-height: 100vh;
+  padding: 32px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.28), transparent 34%),
+    linear-gradient(135deg, #0f172a, #111827 48%, #1e3a8a);
+}
+
+.auth-layout {
+  width: min(1040px, 100%);
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 24px;
+  align-items: stretch;
+}
+
+.auth-brand-panel {
+  padding: 34px;
+  border-radius: 26px;
+  color: white;
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 0.92)),
+    rgba(15, 23, 42, 0.88);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-brand-panel h1 {
+  max-width: 620px;
+  margin: 10px 0;
+  font-size: 48px;
+  line-height: 1.03;
+}
+
+.auth-brand-panel p {
+  max-width: 560px;
+  margin: 0;
+  color: #dbeafe;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.auth-feature-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+.auth-feature-list span {
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #eff6ff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.auth-form-card {
+  margin: 0;
+  max-width: unset;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-form-card h2 {
+  margin-top: 8px;
+  font-size: 32px;
+}
+
+.auth-form-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.auth-message {
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+.auth-switch-text {
+  margin-bottom: 0;
+}
+
+.auth-switch-text a {
+  font-weight: 800;
+  color: #2563eb;
+}
+
+@media (max-width: 900px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand-panel h1 {
+    font-size: 36px;
+  }
+}
+
+.game-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.game-nav-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 13px;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.game-nav-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.game-nav-active {
+  background: white;
+  color: #111827;
+}
+
+.game-nav-active:hover {
+  background: white;
+}
+
+@media (max-width: 700px) {
+  .game-nav {
+    justify-content: flex-start;
+  }
+
+  .game-nav-button {
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
