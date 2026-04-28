@@ -66,10 +66,21 @@ export default function StandingsPage() {
     standingsScreen.season?.isSeasonFinished ||
     standingsScreen.season?.isFinished ||
     false;
+
   const leader = table[0];
+    const selectedTeamId =
+    standingsScreen.team?.id ||
+    standingsScreen.selectedTeam?.id ||
+    standingsScreen.myTeam?.id;
+
+  const selectedTeamShortName =
+    standingsScreen.team?.shortName ||
+    standingsScreen.selectedTeam?.shortName ||
+    standingsScreen.myTeam?.shortName;
+
   const ownTeam =
-    table.find((row) => row.team?.id === standingsScreen.team?.id) ||
-    table.find((row) => row.team?.shortName === standingsScreen.team?.shortName);
+    table.find((row) => row.team?.id === selectedTeamId) ||
+    table.find((row) => row.team?.shortName === selectedTeamShortName);
 
   return (
     <div className="page-shell">
@@ -89,11 +100,16 @@ export default function StandingsPage() {
         {error && <p className="error-text">{error}</p>}
 
         <div className="stat-grid">
-          <StatCard
-            label={isSeasonFinished ? "Bajnok" : "Éllovas"}
-            value={leader ? leader.team.shortName : "-"}
-            helper={leader ? `${leader.points} pont` : "Nincs adat"}
-          />
+          <div
+            className="clickable-stat-card"
+            onClick={() => leader?.team?.id && openTeamModal(leader.team.id)}
+          >
+            <StatCard
+              label={isSeasonFinished ? "Bajnok" : "Éllovas"}
+              value={leader ? leader.team.name : "-"}
+              helper={leader ? `${leader.points} pont` : "Nincs adat"}
+            />
+          </div>
 
           <StatCard
             label="Saját helyezés"
@@ -102,11 +118,15 @@ export default function StandingsPage() {
           />
 
           <StatCard
-            label="Forduló"
-            value={`${standingsScreen.season?.currentRound ?? "-"}/${
-              standingsScreen.season?.totalRounds ?? "-"
-            }`}
-            helper={isSeasonFinished ? "Szezon vége" : "Szezon állása"}
+            label={isSeasonFinished ? "Összes forduló lejátszva" : "Forduló"}
+            value={
+              isSeasonFinished
+                ? "Szezon vége"
+                : `${standingsScreen.season?.currentRound ?? "-"}/${
+                    standingsScreen.season?.totalRounds ?? "-"
+                  }`
+            }
+            helper={isSeasonFinished ? "A bajnokság lezárult" : "Szezon állása"}
           />
         </div>
 

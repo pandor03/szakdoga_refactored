@@ -1087,6 +1087,33 @@ export class UsersService {
       });
     }
 
+    const topScorer = await this.prisma.savePlayer.findFirst({
+      where: {
+        gameSaveId: saveId,
+        position: {
+          in: ['ST', 'LW', 'RW', 'CAM'],
+        },
+      },
+      orderBy: [
+        { overall: 'desc' },
+        { shooting: 'desc' },
+      ],
+      select: {
+        id: true,
+        name: true,
+        position: true,
+        overall: true,
+        shooting: true,
+        saveTeam: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+          },
+        },
+      },
+    });
+
     return {
       save: {
         id: gameSave.id,
@@ -1102,6 +1129,7 @@ export class UsersService {
       currentRoundFixtures,
       lastRoundFixtures,
       standings,
+      topScorer,
     };
   }
 
@@ -1154,18 +1182,42 @@ export class UsersService {
   }
 
   async getFixturesScreen(saveId: string) {
+    const seasonState = await this.getSeasonState(saveId);
+
+    if (seasonState.isSeasonFinished || seasonState.isFinished) {
+      const standings = await this.getSaveStandings(saveId);
+      const roundsOverview = await this.getRoundsOverview(saveId);
+      const lastRoundFixtures = await this.getLastRoundFixtures(saveId);
+      const seasonSummary = await this.buildSeasonSummary(saveId);
+
+      return {
+        seasonState,
+        seasonSummary,
+        round: {
+          roundNumber: seasonState.totalRounds,
+          remainingFixtures: 0,
+          isSeasonFinished: true,
+        },
+        myMatch: null,
+        standings,
+        otherMatches: {
+          played: lastRoundFixtures,
+          remaining: [],
+        },
+        roundsOverview,
+      };
+    }
+
     const [
       actionSummary,
       myMatch,
       otherResults,
-      seasonState,
       roundsOverview,
       standings,
     ] = await Promise.all([
       this.getCurrentRoundActionSummary(saveId),
       this.getCurrentRoundMyMatchResult(saveId),
       this.getCurrentRoundOtherResults(saveId),
-      this.getSeasonState(saveId),
       this.getRoundsOverview(saveId),
       this.getSaveStandings(saveId),
     ]);

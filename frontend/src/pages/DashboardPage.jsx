@@ -140,9 +140,9 @@ export default function DashboardPage() {
 
         <div className="stat-grid">
           <StatCard
-            label="Aktuális forduló"
-            value={`${currentRound}/${totalRounds}`}
-            helper={isSeasonFinished ? "Szezon vége" : "Szezon folyamatban"}
+            label={isSeasonFinished ? "Összes forduló lejátszva" : "Aktuális forduló"}
+            value={isSeasonFinished ? "Szezon vége" : `${currentRound}/${totalRounds}`}
+            helper={isSeasonFinished ? "A bajnokság lezárult" : "Szezon folyamatban"}
           />
 
           <StatCard
@@ -156,13 +156,19 @@ export default function DashboardPage() {
           />
 
           <StatCard
-            label="Lejátszott meccsek"
+            label={isSeasonFinished ? "Gólkirály" : "Lejátszott meccsek"}
             value={
-              dashboard.currentRoundFixtures
-                ? dashboard.currentRoundFixtures.filter((fixture) => fixture.isPlayed).length
-                : "-"
+              isSeasonFinished
+                ? dashboard.topScorer?.name || "-"
+                : dashboard.currentRoundFixtures
+                  ? dashboard.currentRoundFixtures.filter((fixture) => fixture.isPlayed).length
+                  : "-"
             }
-            helper="Aktuális fordulóban"
+            helper={
+              isSeasonFinished
+                ? `OVR: ${dashboard.topScorer?.overall ?? "-"}`
+                : "Aktuális fordulóban"
+            }
           />
         </div>
 

@@ -34,7 +34,16 @@ export default function FixturesPage() {
 
   const playedOtherMatches = fixturesScreen?.otherMatches?.played || [];
   const remainingOtherMatches = fixturesScreen?.otherMatches?.remaining || [];
-  const allOtherMatches = [...playedOtherMatches, ...remainingOtherMatches];
+
+  const isSeasonFinished =
+    fixturesScreen?.seasonState?.isSeasonFinished ||
+    fixturesScreen?.seasonState?.isFinished ||
+    fixturesScreen?.round?.isSeasonFinished ||
+    false;
+
+  const allOtherMatches = isSeasonFinished
+    ? playedOtherMatches
+    : [...playedOtherMatches, ...remainingOtherMatches];
 
   const isSeasonFinished =
     fixturesScreen?.seasonState?.isSeasonFinished ||
@@ -127,10 +136,18 @@ export default function FixturesPage() {
             </div>
 
             {isSeasonFinished ? (
-              <EmptyState
-                title="A szezon véget ért."
-                description="Nincs több lejátszható mérkőzés ebben a szezonban."
-              />
+              <div className="season-summary-box">
+                <span className="game-page-kicker">Season Finished</span>
+                <h3>
+                  Bajnok:{" "}
+                  {fixturesScreen.seasonSummary?.winner?.team?.name ||
+                    fixturesScreen.standings?.[0]?.team?.name ||
+                    "-"}
+                </h3>
+                <p className="muted-text">
+                  A szezon összes fordulója lejátszva. Az utolsó forduló eredményei lent láthatók.
+                </p>
+              </div>
             ) : myFixture ? (
   <>
               <MatchCard

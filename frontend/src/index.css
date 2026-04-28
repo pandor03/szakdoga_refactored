@@ -1850,3 +1850,12 @@ select {
   background: rgba(255, 255, 255, 0.65);
   font-weight: 700;
 }
+
+.clickable-stat-card {
+  cursor: pointer;
+}
+
+.clickable-stat-card:hover {
+  transform: translateY(-2px);
+  transition: 0.15s ease;
+}
