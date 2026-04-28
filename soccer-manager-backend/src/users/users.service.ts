@@ -2830,25 +2830,26 @@ export class UsersService {
         saveTeamId: team.id,
       },
       select: {
-      id: true,
-      name: true,
-      age: true,
-      position: true,
+        id: true,
+        name: true,
+        age: true,
+        position: true,
 
-      overall: true,
-      pace: true,
-      shooting: true,
-      passing: true,
-      dribbling: true,
-      defending: true,
-      physical: true,
+        overall: true,
+        pace: true,
+        shooting: true,
+        passing: true,
+        dribbling: true,
+        defending: true,
+        physical: true,
 
-      role: true,
-      lineupPosition: true,
-      lineupSlot: true,
-      marketValue: true,
-      isTransferListed: true,
-    },
+        role: true,
+        lineupPosition: true,
+        lineupSlot: true,
+        marketValue: true,
+        isTransferListed: true,
+
+      },
     });
 
     const positionOrder: Record<string, number> = {
@@ -4309,14 +4310,36 @@ export class UsersService {
       },
     });
 
-    const lineup = players
-      .filter((player) => player.role === 'starter')
-      .slice(0, 11)
-      .map((player) => ({
+    const formation = isSupportedFormation(team?.formation ?? '')
+    ? (team?.formation as SupportedFormation)
+    : '4-3-3';
+
+  const lineup = players
+    .filter((player) => player.role === 'starter')
+    .slice(0, 11)
+    .map((player) => {
+      const slotDefinition = player.lineupSlot
+        ? getSlotDefinition(formation, player.lineupSlot)
+        : null;
+
+      const tacticalPosition =
+        slotDefinition?.tacticalPosition ??
+        player.lineupPosition ??
+        player.position;
+
+      const multiplier = getPositionCompatibilityMultiplier(
+        player.position as PlayerPosition,
+        tacticalPosition as PlayerPosition,
+      );
+
+      return {
         ...player,
+        tacticalPosition,
+        positionMultiplier: multiplier,
         stamina: 100,
-        effectiveOverall: player.overall,
-      }));
+        effectiveOverall: Math.round(player.overall * multiplier),
+      };
+    });
 
     const bench = players
       .filter((player) => player.role === 'bench')
@@ -4329,7 +4352,7 @@ export class UsersService {
 
     return {
       team,
-      formation: team?.formation ?? '4-3-3',
+      formation,
       lineup,
       bench,
     };
