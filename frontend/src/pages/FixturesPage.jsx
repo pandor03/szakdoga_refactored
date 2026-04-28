@@ -116,28 +116,28 @@ export default function FixturesPage() {
             </div>
 
             {myFixture ? (
-              <>
-                <MatchCard
-                  fixture={roundSummary.myFixture}
-                  onClick={() => openMatchModal(roundSummary.myFixture)}
-                  onTeamClick={openTeamModal}
-                />
+  <>
+              <MatchCard
+                fixture={myFixture}
+                onClick={() => openMatchModal(myFixture)}
+                onTeamClick={openTeamModal}
+              />
 
-                {canPlayRound ? (
-                  <button disabled={isPlayingRound} onClick={handlePlayRound}>
-                    {isPlayingRound
-                      ? "Forduló szimulálása..."
-                      : "Forduló lejátszása"}
-                  </button>
-                ) : (
-                  <div className="success-text">
-                    A forduló mérkőzései lejátszva.
-                  </div>
-                )}
-              </>
-            ) : (
-              <EmptyState title="Nincs saját meccs ebben a fordulóban." />
-            )}
+              {canPlayRound ? (
+                <button disabled={isPlayingRound} onClick={handlePlayRound}>
+                  {isPlayingRound
+                    ? "Forduló szimulálása..."
+                    : "Forduló lejátszása"}
+                </button>
+              ) : (
+                <div className="success-text">
+                  A forduló mérkőzései lejátszva.
+                </div>
+              )}
+            </>
+          ) : (
+            <EmptyState title="Nincs saját meccs ebben a fordulóban." />
+          )}
           </section>
 
           <section className="card fixtures-standings-card">
@@ -246,8 +246,8 @@ export default function FixturesPage() {
               <div className="round-summary-section">
                 <h3>Saját meccs</h3>
                 <MatchCard
-                  fixture={roundSummary.myFixture}
-                  onClick={() => openMatchModal(roundSummary.myFixture)}
+                  fixture={myFixture}
+                  onClick={() => openMatchModal(myFixture)}
                   onTeamClick={openTeamModal}
                 />
               </div>
