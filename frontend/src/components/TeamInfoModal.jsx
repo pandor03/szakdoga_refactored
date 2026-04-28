@@ -5,15 +5,72 @@ import EmptyState from "./EmptyState";
 import MatchCard from "./MatchCard";
 import MatchInfoModal from "./MatchInfoModal";
 
-const getPlayerOverall = (player) =>
+const normalizePosition = (value) => {
+  if (!value) return "";
+
+  return String(value)
+    .toUpperCase()
+    .replace(/[0-9]/g, "")
+    .replace("_", "")
+    .trim();
+};
+
+const getFitData = (player) => {
+  const playerPosition = normalizePosition(player.position);
+  const targetPosition = normalizePosition(
+    player.lineupPosition || player.tacticalPosition || player.position
+  );
+
+  if (playerPosition === targetPosition) {
+    return { multiplier: 1, className: "fit-good" };
+  }
+
+  const midfieldPositions = ["CM", "CDM", "CAM"];
+
+  if (
+    midfieldPositions.includes(playerPosition) &&
+    midfieldPositions.includes(targetPosition)
+  ) {
+    return { multiplier: 0.9, className: "fit-ok" };
+  }
+
+  return { multiplier: 0.75, className: "fit-bad" };
+};
+
+const getRawOverall = (player) =>
   player.overall ?? player.rating ?? player.ovr ?? player.stats?.overall ?? "-";
+
+const getFitOverall = (player) => {
+  if (player.effectiveOverall !== undefined && player.effectiveOverall !== null) {
+    return player.effectiveOverall;
+  }
+
+  const rawOverall = Number(getRawOverall(player));
+
+  if (Number.isNaN(rawOverall)) {
+    return "-";
+  }
+
+  return Math.round(rawOverall * getFitData(player).multiplier);
+};
+
+const getTeamOverall = (players) => {
+  const values = players
+    .slice(0, 11)
+    .map((player) => Number(getFitOverall(player)))
+    .filter((value) => !Number.isNaN(value));
+
+  if (!values.length) return "-";
+
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+};
 
 function PlayerStatsTooltip({ player }) {
   return (
     <div className="player-tooltip">
       <strong>{player.name}</strong>
       <p>
-        {player.position} | OVR: {player.overall ?? "-"}
+        {player.position} | OVR: {getRawOverall(player)}
       </p>
 
       {["pace", "shooting", "passing", "dribbling", "defending", "physical"].map(
@@ -28,13 +85,20 @@ function PlayerStatsTooltip({ player }) {
   );
 }
 
-function PlayerInfoRow({ player }) {
+function PlayerInfoRow({ player, useFitOverall = false }) {
+  const fit = getFitData(player);
+  const displayedOverall = useFitOverall ? getFitOverall(player) : getRawOverall(player);
+
   return (
     <div className="team-lineup-row player-info-hover-row">
       <strong>{player.name}</strong>
       <span>{player.position}</span>
-      <span className="team-lineup-ovr raw-ovr">
-        {getPlayerOverall(player)}
+      <span
+        className={`team-lineup-ovr ${
+          useFitOverall ? fit.className : "raw-ovr"
+        }`}
+      >
+        {displayedOverall}
       </span>
 
       <PlayerStatsTooltip player={player} />
@@ -91,14 +155,18 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
       .finally(() => setIsLoading(false));
   }, [saveId, teamId]);
 
+  const starterCandidates = players.filter(
+    (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
+  );
+
   const starters =
-    players.filter(
-      (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
-    ).length > 0
-      ? players.filter(
-          (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
-        )
-      : [...players].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 11);
+    starterCandidates.length > 0
+      ? starterCandidates
+      : [...players]
+          .sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))
+          .slice(0, 11);
+
+  const teamOverall = getTeamOverall(starters);
 
   return (
     <div className="modal-backdrop">
@@ -114,9 +182,11 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
         ) : (
           <>
             <span className="game-page-kicker">Team Info</span>
+
             <h2>
               {teamDetail?.team?.name || teamDetail?.name}
               <small> ({teamDetail?.team?.shortName || teamDetail?.shortName})</small>
+              <strong className="team-info-overall">OVR {teamOverall}</strong>
             </h2>
 
             <div className="team-info-grid">
@@ -125,7 +195,11 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
 
                 <div className="team-lineup-list">
                   {starters.slice(0, 11).map((player) => (
-                    <PlayerInfoRow key={player.id} player={player} />
+                    <PlayerInfoRow
+                      key={player.id}
+                      player={player}
+                      useFitOverall
+                    />
                   ))}
                 </div>
               </section>
