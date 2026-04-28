@@ -81,8 +81,6 @@ model SaveTeam {
   outgoingTransfers TransferHistory[] @relation("TransferFromTeam")
   incomingTransfers TransferHistory[] @relation("TransferToTeam")
 
-  goalsScored Int @default(0)
-
   @@index([gameSaveId])
   @@index([saveLeagueId])
 }
@@ -217,6 +215,15 @@ model MatchResult {
   homeGoals Int
   awayGoals Int
   playedAt  DateTime @default(now())
+
+  homeFormation String?
+  awayFormation String?
+
+  homeLineup Json?
+  awayLineup Json?
+  homeBench  Json?
+  awayBench  Json?
+  events     Json?
 
   gameSaveId String
   gameSave   GameSave @relation(fields: [gameSaveId], references: [id])

@@ -594,6 +594,15 @@ export class UsersService {
     saveFixtureId: string,
     homeGoals: number,
     awayGoals: number,
+    snapshot?: {
+      homeFormation?: string;
+      awayFormation?: string;
+      homeLineup?: any[];
+      awayLineup?: any[];
+      homeBench?: any[];
+      awayBench?: any[];
+      events?: any[];
+    },
   ) {
     const fixture = await this.prisma.saveFixture.findUnique({
       where: {
@@ -618,6 +627,13 @@ export class UsersService {
         saveFixtureId,
         homeGoals,
         awayGoals,
+        homeFormation: snapshot?.homeFormation,
+        awayFormation: snapshot?.awayFormation,
+        homeLineup: snapshot?.homeLineup ?? [],
+        awayLineup: snapshot?.awayLineup ?? [],
+        homeBench: snapshot?.homeBench ?? [],
+        awayBench: snapshot?.awayBench ?? [],
+        events: snapshot?.events ?? [],
       },
     });
 
@@ -746,23 +762,65 @@ export class UsersService {
         fixture.awayTeamId,
       );
 
+      const homeSnapshot = await this.buildMatchTeamSnapshot(
+        gameSaveId,
+        fixture.homeTeamId,
+      );
+
+      const awaySnapshot = await this.buildMatchTeamSnapshot(
+        gameSaveId,
+        fixture.awayTeamId,
+      );
+
+      const homeSubResult = this.simulateFatigueAndSubstitutions(
+        homeSnapshot.lineup,
+        homeSnapshot.bench,
+        'home',
+      );
+
+      const awaySubResult = this.simulateFatigueAndSubstitutions(
+        awaySnapshot.lineup,
+        awaySnapshot.bench,
+        'away',
+      );
+
+      const homeGoalEvents = await this.assignGoalsToPlayers(
+        gameSaveId,
+        fixture.homeTeamId,
+        simulation.homeGoals,
+        homeSubResult.lineup,
+        'home',
+      );
+
+      const awayGoalEvents = await this.assignGoalsToPlayers(
+        gameSaveId,
+        fixture.awayTeamId,
+        simulation.awayGoals,
+        awaySubResult.lineup,
+        'away',
+      );
+
+      const matchEvents = [
+        ...homeSubResult.events,
+        ...awaySubResult.events,
+        ...homeGoalEvents,
+        ...awayGoalEvents,
+      ].sort((a, b) => a.minute - b.minute);
+
       await this.saveMatchResult(
         gameSaveId,
         fixture.id,
         simulation.homeGoals,
         simulation.awayGoals,
-      );
-
-      await this.assignGoalsToPlayers(
-        gameSaveId,
-        fixture.homeTeamId,
-        simulation.homeGoals,
-      );
-
-      await this.assignGoalsToPlayers(
-        gameSaveId,
-        fixture.awayTeamId,
-        simulation.awayGoals,
+        {
+          homeFormation: homeSnapshot.formation,
+          awayFormation: awaySnapshot.formation,
+          homeLineup: homeSubResult.lineup,
+          awayLineup: awaySubResult.lineup,
+          homeBench: homeSubResult.bench,
+          awayBench: awaySubResult.bench,
+          events: matchEvents,
+        },
       );
     }
 
@@ -827,32 +885,28 @@ export class UsersService {
     gameSaveId: string,
     saveTeamId: string,
     goals: number,
+    lineupSnapshot: any[],
+    teamSide: 'home' | 'away',
   ) {
-    if (goals <= 0) return;
+    if (goals <= 0) return [];
 
-    const candidates = await this.prisma.savePlayer.findMany({
-      where: {
-        gameSaveId,
-        saveTeamId,
-        role: {
-          in: ['starter', 'bench'],
-        },
-        position: {
-          in: ['ST', 'LW', 'RW', 'CAM', 'CM'],
-        },
-      },
-      orderBy: [
-        { shooting: 'desc' },
-        { overall: 'desc' },
-      ],
-      take: 8,
-    });
+    const candidates = lineupSnapshot
+      .filter((player) =>
+        ['ST', 'LW', 'RW', 'CAM', 'CM'].includes(player.position),
+      )
+      .sort((a, b) => {
+        if (b.shooting !== a.shooting) return b.shooting - a.shooting;
+        return b.overall - a.overall;
+      })
+      .slice(0, 6);
 
-    if (!candidates.length) return;
+    if (!candidates.length) return [];
+
+    const goalEvents: any[] = [];
 
     for (let i = 0; i < goals; i++) {
       const scorer =
-        candidates[Math.floor(Math.random() * Math.min(candidates.length, 5))];
+        candidates[Math.floor(Math.random() * Math.min(candidates.length, 4))];
 
       await this.prisma.savePlayer.update({
         where: {
@@ -864,7 +918,20 @@ export class UsersService {
           },
         },
       });
+
+      goalEvents.push({
+        minute: Math.floor(this.randomBetween(5, 90)),
+        type: 'GOAL',
+        teamSide,
+        player: {
+          id: scorer.id,
+          name: scorer.name,
+          position: scorer.position,
+        },
+      });
     }
+
+    return goalEvents.sort((a, b) => a.minute - b.minute);
   }
 
   async getSaveStandings(gameSaveId: string) {
@@ -3711,14 +3778,21 @@ export class UsersService {
     isTransferListed: boolean,
   ) {
     await this.getRequiredSavePlayer(saveId, playerId);
-  
+
     const updatedPlayer = await this.prisma.savePlayer.update({
       where: {
         id: playerId,
       },
-      data: {
-        isTransferListed,
-      },
+      data: isTransferListed
+        ? {
+            isTransferListed: true,
+            role: 'reserve',
+            lineupPosition: null,
+            lineupSlot: null,
+          }
+        : {
+            isTransferListed: false,
+          },
       select: {
         id: true,
         name: true,
@@ -3736,11 +3810,12 @@ export class UsersService {
         lineupSlot: true,
         isTransferListed: true,
         marketValue: true,
+        goalsScored: true,
         saveTeamId: true,
         gameSaveId: true,
       },
     });
-  
+
     return {
       message: 'Player transfer list status updated successfully',
       player: this.mapPlayerForResponse(updatedPlayer),
@@ -3900,6 +3975,18 @@ export class UsersService {
       throw new BadRequestException('Not enough budget to buy this player');
     }
 
+    if (player.saveTeamId === selectedTeam.id) {
+      throw new BadRequestException('Selected team cannot buy its own player');
+    }
+
+    if (!player.isTransferListed) {
+      throw new BadRequestException('Player is not transfer listed');
+    }
+
+    if (selectedTeam.budget < player.marketValue) {
+      throw new BadRequestException('Not enough budget to buy this player');
+    }
+
     const updatedPlayer = await this.prisma.$transaction(async (tx) => {
       await tx.saveTeam.update({
         where: {
@@ -3930,7 +4017,7 @@ export class UsersService {
         data: {
           saveTeamId: selectedTeam.id,
           isTransferListed: false,
-          role: 'bench',
+          role: 'reserve',
           lineupPosition: null,
           lineupSlot: null,
         },
@@ -4105,6 +4192,147 @@ export class UsersService {
     } while (p > l);
 
     return k - 1;
+  }
+
+  private simulateFatigueAndSubstitutions(
+    lineup: any[],
+    bench: any[],
+    teamSide: 'home' | 'away',
+  ) {
+    const events: any[] = [];
+    const finalLineup = [...lineup];
+    const finalBench = [...bench];
+
+    const substitutionMinutes = [60, 70, 80];
+
+    for (const minute of substitutionMinutes) {
+      const tiredPlayerIndex = finalLineup
+        .map((player, index) => ({ player, index }))
+        .sort((a, b) => {
+          const staminaA = a.player.stamina ?? 100;
+          const staminaB = b.player.stamina ?? 100;
+          return staminaA - staminaB;
+        })[0]?.index;
+
+      if (tiredPlayerIndex === undefined || finalBench.length === 0) continue;
+
+      const tiredPlayer = finalLineup[tiredPlayerIndex];
+      const replacementIndex = finalBench.findIndex(
+        (player) =>
+          player.position === tiredPlayer.position ||
+          player.lineupPosition === tiredPlayer.lineupPosition,
+      );
+
+      const selectedBenchIndex = replacementIndex >= 0 ? replacementIndex : 0;
+      const replacement = finalBench[selectedBenchIndex];
+
+      if (!replacement) continue;
+
+      finalLineup[tiredPlayerIndex] = {
+        ...replacement,
+        stamina: 100,
+        effectiveOverall: replacement.overall,
+      };
+
+      finalBench.splice(selectedBenchIndex, 1);
+
+      events.push({
+        minute,
+        type: 'SUBSTITUTION',
+        teamSide,
+        playerOut: {
+          id: tiredPlayer.id,
+          name: tiredPlayer.name,
+          position: tiredPlayer.position,
+        },
+        playerIn: {
+          id: replacement.id,
+          name: replacement.name,
+          position: replacement.position,
+        },
+      });
+    }
+
+    const fatiguedLineup = finalLineup.map((player) => {
+      const staminaLoss = this.randomBetween(18, 38);
+      const stamina = Math.max(45, Math.round((player.stamina ?? 100) - staminaLoss));
+      const fatiguePenalty = Math.round((100 - stamina) / 10);
+
+      return {
+        ...player,
+        stamina,
+        effectiveOverall: Math.max(40, player.overall - fatiguePenalty),
+      };
+    });
+
+    return {
+      lineup: fatiguedLineup,
+      bench: finalBench,
+      events,
+    };
+  }
+
+  private async buildMatchTeamSnapshot(gameSaveId: string, saveTeamId: string) {
+    const team = await this.prisma.saveTeam.findUnique({
+      where: {
+        id: saveTeamId,
+      },
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        formation: true,
+      },
+    });
+
+    const players = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId,
+        saveTeamId,
+        isTransferListed: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        position: true,
+        overall: true,
+        pace: true,
+        shooting: true,
+        passing: true,
+        dribbling: true,
+        defending: true,
+        physical: true,
+        role: true,
+        lineupPosition: true,
+        lineupSlot: true,
+        goalsScored: true,
+      },
+    });
+
+    const lineup = players
+      .filter((player) => player.role === 'starter')
+      .slice(0, 11)
+      .map((player) => ({
+        ...player,
+        stamina: 100,
+        effectiveOverall: player.overall,
+      }));
+
+    const bench = players
+      .filter((player) => player.role === 'bench')
+      .slice(0, 7)
+      .map((player) => ({
+        ...player,
+        stamina: 100,
+        effectiveOverall: player.overall,
+      }));
+
+    return {
+      team,
+      formation: team?.formation ?? '4-3-3',
+      lineup,
+      bench,
+    };
   }
 
   private async getTeamMatchStrength(saveId: string, saveTeamId: string) {
@@ -5213,6 +5441,32 @@ export class UsersService {
       (id, index) => starterPlayerIds.indexOf(id) !== index,
     );
 
+    const selectedPlayerIds = [
+    ...(body.starters ?? []).map((item) => item.playerId),
+    ...(body.benchPlayerIds ?? []),
+    ];
+
+    const listedPlayers = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId: saveId,
+        id: {
+          in: selectedPlayerIds,
+        },
+        isTransferListed: true,
+      },
+      select: {
+        name: true,
+      },
+    });
+
+    if (listedPlayers.length > 0) {
+      throw new BadRequestException(
+        `Transfer listed players cannot be in the lineup or bench: ${listedPlayers
+          .map((player) => player.name)
+          .join(', ')}`,
+      );
+    }
+
     if (duplicateStarterPlayerIds.length > 0) {
       throw new BadRequestException('Starter players must be unique');
     }
@@ -5670,37 +5924,39 @@ export class UsersService {
     };
   }
 
-  private mapFixtureForResponse(fixture: {
-    id: string;
-    roundNumber: number;
-    createdAt: Date;
-    matchResult: {
-      id: string;
-      homeGoals: number;
-      awayGoals: number;
-      playedAt: Date;
-    } | null;
-    homeTeam: {
-      id: string;
-      name: string;
-      shortName: string;
-    };
-    awayTeam: {
-      id: string;
-      name: string;
-      shortName: string;
-    };
-  }) {
+  private mapFixtureForResponse(fixture: any) {
+    const isPlayed = Boolean(fixture.matchResult);
+
     return {
       id: fixture.id,
       roundNumber: fixture.roundNumber,
       createdAt: fixture.createdAt,
+
       homeTeam: fixture.homeTeam,
       awayTeam: fixture.awayTeam,
-      isPlayed: fixture.matchResult !== null,
+
+      isPlayed,
       homeGoals: fixture.matchResult?.homeGoals ?? null,
       awayGoals: fixture.matchResult?.awayGoals ?? null,
       playedAt: fixture.matchResult?.playedAt ?? null,
+
+      matchSummary: fixture.matchResult
+        ? {
+            homeFormation: fixture.matchResult.homeFormation,
+            awayFormation: fixture.matchResult.awayFormation,
+            homeLineup: fixture.matchResult.homeLineup ?? [],
+            awayLineup: fixture.matchResult.awayLineup ?? [],
+            homeBench: fixture.matchResult.homeBench ?? [],
+            awayBench: fixture.matchResult.awayBench ?? [],
+            events: fixture.matchResult.events ?? [],
+            goalscorers: (fixture.matchResult.events ?? []).filter(
+              (event: any) => event.type === 'GOAL',
+            ),
+            substitutions: (fixture.matchResult.events ?? []).filter(
+              (event: any) => event.type === 'SUBSTITUTION',
+            ),
+          }
+        : null,
     };
   }
 

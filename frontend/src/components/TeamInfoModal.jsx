@@ -93,11 +93,7 @@ function PlayerInfoRow({ player, useFitOverall = false }) {
     <div className="team-lineup-row player-info-hover-row">
       <strong>{player.name}</strong>
       <span>{player.position}</span>
-      <span
-        className={`team-lineup-ovr ${
-          useFitOverall ? fit.className : "raw-ovr"
-        }`}
-      >
+      <span className={`team-lineup-ovr ${useFitOverall ? fit.className : "raw-ovr"}`}>
         {displayedOverall}
       </span>
 
@@ -155,6 +151,8 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
       .finally(() => setIsLoading(false));
   }, [saveId, teamId]);
 
+  const team = teamDetail?.team || teamDetail;
+
   const starterCandidates = players.filter(
     (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
   );
@@ -184,10 +182,18 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
             <span className="game-page-kicker">Team Info</span>
 
             <h2>
-              {teamDetail?.team?.name || teamDetail?.name}
-              <small> ({teamDetail?.team?.shortName || teamDetail?.shortName})</small>
+              {team?.name}
+              <small> ({team?.shortName})</small>
               <strong className="team-info-overall">OVR {teamOverall}</strong>
             </h2>
+
+            <p className="muted-text">
+              Formáció:{" "}
+              {teamDetail?.formation ||
+                teamDetail?.team?.formation ||
+                team?.formation ||
+                "-"}
+            </p>
 
             <div className="team-info-grid">
               <section>
