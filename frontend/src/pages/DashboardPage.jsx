@@ -155,21 +155,41 @@ export default function DashboardPage() {
             }
           />
 
-          <StatCard
-            label={isSeasonFinished ? "Gólkirály" : "Lejátszott meccsek"}
-            value={
-              isSeasonFinished
-                ? dashboard.topScorer?.name || "-"
-                : dashboard.currentRoundFixtures
-                  ? dashboard.currentRoundFixtures.filter((fixture) => fixture.isPlayed).length
-                  : "-"
-            }
-            helper={
-              isSeasonFinished
-                ? `OVR: ${dashboard.topScorer?.overall ?? "-"}`
-                : "Aktuális fordulóban"
-            }
-          />
+          <div className="stat-tooltip-wrapper">
+            <StatCard
+              label={isSeasonFinished ? "Gólkirály" : "Lejátszott meccsek"}
+              value={
+                isSeasonFinished
+                  ? dashboard.topScorer?.name || "-"
+                  : dashboard.currentRoundFixtures
+                    ? dashboard.currentRoundFixtures.filter((fixture) => fixture.isPlayed).length
+                    : "-"
+              }
+              helper={
+                isSeasonFinished
+                  ? `${dashboard.topScorer?.goalsScored ?? 0} gól`
+                  : "Aktuális fordulóban"
+              }
+            />
+
+            {isSeasonFinished && dashboard.topScorer && (
+              <div className="player-tooltip stat-player-tooltip">
+                <strong>{dashboard.topScorer.name}</strong>
+                <p>
+                  {dashboard.topScorer.position} | OVR: {dashboard.topScorer.overall}
+                </p>
+                <p>{dashboard.topScorer.saveTeam?.name}</p>
+                <div className="tooltip-stat-row">
+                  <span>Gólok</span>
+                  <strong>{dashboard.topScorer.goalsScored}</strong>
+                </div>
+                <div className="tooltip-stat-row">
+                  <span>Shooting</span>
+                  <strong>{dashboard.topScorer.shooting}</strong>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="dashboard-final-grid">

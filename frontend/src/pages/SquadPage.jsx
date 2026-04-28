@@ -288,13 +288,6 @@ export default function SquadPage() {
 
         <div className="card squad-workspace-card">
           <div className="squad-workspace-header">
-            <div>
-              <h2>Kezdőcsapat</h2>
-              <p className="muted-text">
-                Húzd át a játékosokat kezdő, cserepad és tartalék között.
-              </p>
-            </div>
-
             <SquadSummary
               squadScreen={squadScreen}
               currentFormation={currentFormation}

@@ -68,19 +68,20 @@ export default function StandingsPage() {
     false;
 
   const leader = table[0];
-    const selectedTeamId =
-    standingsScreen.team?.id ||
-    standingsScreen.selectedTeam?.id ||
-    standingsScreen.myTeam?.id;
 
   const selectedTeamShortName =
     standingsScreen.team?.shortName ||
     standingsScreen.selectedTeam?.shortName ||
-    standingsScreen.myTeam?.shortName;
+    standingsScreen.myTeam?.shortName ||
+    standingsScreen.selectedTeamShortName;
 
   const ownTeam =
-    table.find((row) => row.team?.id === selectedTeamId) ||
-    table.find((row) => row.team?.shortName === selectedTeamShortName);
+    table.find((row) => selectedTeamId && row.team?.id === selectedTeamId) ||
+    table.find(
+      (row) =>
+        selectedTeamShortName && row.team?.shortName === selectedTeamShortName
+    ) ||
+    table.find((row) => row.isSelectedTeam || row.isOwnTeam);
 
   return (
     <div className="page-shell">

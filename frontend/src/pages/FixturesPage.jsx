@@ -227,7 +227,8 @@ export default function FixturesPage() {
                     key={round.roundNumber}
                     className={`round-card ${
                       round.isCurrent ? "current-round-card" : ""
-                    }`}
+                    } ${round.selectedTeamFixture ? "clickable-round-card" : ""}`}
+                    onClick={() => openMatchModal(round.selectedTeamFixture)}
                   >
                     <div>
                       <strong>{round.roundNumber}. forduló</strong>

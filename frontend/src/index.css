@@ -1859,3 +1859,66 @@ select {
   transform: translateY(-2px);
   transition: 0.15s ease;
 }
+
+.squad-workspace-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.squad-workspace-header > :first-child {
+  width: 100%;
+}
+
+.squad-workspace-header .squad-summary,
+.squad-workspace-header .squad-summary-card,
+.squad-workspace-header > div:first-child {
+  width: 100%;
+}
+
+.transfer-player-card {
+  position: relative;
+  cursor: pointer;
+}
+
+.transfer-player-card .player-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: 0.15s ease;
+}
+
+.transfer-player-card:hover .player-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 20;
+}
+
+.stat-tooltip-wrapper {
+  position: relative;
+}
+
+.stat-tooltip-wrapper .stat-player-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: 0.15s ease;
+}
+
+.stat-tooltip-wrapper:hover .stat-player-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 20;
+}
+
+.clickable-round-card {
+  cursor: pointer;
+}
+
+.clickable-round-card:hover {
+  transform: translateY(-2px);
+  transition: 0.15s ease;
+}

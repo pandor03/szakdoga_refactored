@@ -81,6 +81,8 @@ model SaveTeam {
   outgoingTransfers TransferHistory[] @relation("TransferFromTeam")
   incomingTransfers TransferHistory[] @relation("TransferToTeam")
 
+  goalsScored Int @default(0)
+
   @@index([gameSaveId])
   @@index([saveLeagueId])
 }
@@ -130,6 +132,7 @@ model SavePlayer {
   lineupSlot       String?
   isTransferListed Boolean @default(false)
   marketValue      Int     @default(0)
+  goalsScored      Int     @default(0)
 
   createdAt DateTime @default(now())
 

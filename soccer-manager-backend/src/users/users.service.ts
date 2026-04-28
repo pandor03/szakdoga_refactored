@@ -752,6 +752,18 @@ export class UsersService {
         simulation.homeGoals,
         simulation.awayGoals,
       );
+
+      await this.assignGoalsToPlayers(
+        gameSaveId,
+        fixture.homeTeamId,
+        simulation.homeGoals,
+      );
+
+      await this.assignGoalsToPlayers(
+        gameSaveId,
+        fixture.awayTeamId,
+        simulation.awayGoals,
+      );
     }
 
     await this.tryAdvanceRoundIfRoundFinished(gameSaveId, currentRound);
@@ -809,6 +821,50 @@ export class UsersService {
       seasonState,
       seasonSummary,
     };
+  }
+
+  private async assignGoalsToPlayers(
+    gameSaveId: string,
+    saveTeamId: string,
+    goals: number,
+  ) {
+    if (goals <= 0) return;
+
+    const candidates = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId,
+        saveTeamId,
+        role: {
+          in: ['starter', 'bench'],
+        },
+        position: {
+          in: ['ST', 'LW', 'RW', 'CAM', 'CM'],
+        },
+      },
+      orderBy: [
+        { shooting: 'desc' },
+        { overall: 'desc' },
+      ],
+      take: 8,
+    });
+
+    if (!candidates.length) return;
+
+    for (let i = 0; i < goals; i++) {
+      const scorer =
+        candidates[Math.floor(Math.random() * Math.min(candidates.length, 5))];
+
+      await this.prisma.savePlayer.update({
+        where: {
+          id: scorer.id,
+        },
+        data: {
+          goalsScored: {
+            increment: 1,
+          },
+        },
+      });
+    }
   }
 
   async getSaveStandings(gameSaveId: string) {
@@ -1090,11 +1146,12 @@ export class UsersService {
     const topScorer = await this.prisma.savePlayer.findFirst({
       where: {
         gameSaveId: saveId,
-        position: {
-          in: ['ST', 'LW', 'RW', 'CAM'],
+        goalsScored: {
+          gt: 0,
         },
       },
       orderBy: [
+        { goalsScored: 'desc' },
         { overall: 'desc' },
         { shooting: 'desc' },
       ],
@@ -1104,6 +1161,7 @@ export class UsersService {
         position: true,
         overall: true,
         shooting: true,
+        goalsScored: true,
         saveTeam: {
           select: {
             id: true,
