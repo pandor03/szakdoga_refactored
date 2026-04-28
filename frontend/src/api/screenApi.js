@@ -135,3 +135,12 @@ export const getTeamFixtures = async (saveId, teamId) => {
   );
   return data;
 };
+
+export const updateSelectedTeamTacticStyle = async (saveId, tacticStyle) => {
+  const { data } = await http.patch(
+    `/users/saves/${saveId}/selected-team/tactic-style`,
+    { tacticStyle }
+  );
+
+  return data;
+};

@@ -229,6 +229,17 @@ export class UsersController {
     );
   }
   
+  @Patch('saves/:saveId/selected-team/tactic-style')
+  async updateSelectedTeamTacticStyle(
+    @Param('saveId') saveId: string,
+    @Body() body: { tacticStyle: string },
+  ) {
+    return this.usersService.updateSelectedTeamTacticStyle(
+      saveId,
+      body.tacticStyle,
+    );
+  }
+
   @Patch('saves/:saveId/players/:playerId/transfer-list-status')
   async updatePlayerTransferListStatus(
     @Param('saveId') saveId: string,

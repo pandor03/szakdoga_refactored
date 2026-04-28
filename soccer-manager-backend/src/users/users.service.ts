@@ -705,6 +705,8 @@ export class UsersService {
 
     const currentRound = gameSave.currentRound;
 
+    await this.runBotAiBeforeRound(gameSaveId);
+
     const lastFixture = await this.prisma.saveFixture.findFirst({
       where: { gameSaveId },
       orderBy: { roundNumber: 'desc' },
@@ -788,12 +790,69 @@ export class UsersService {
           fixture.awayTeam.id === gameSave.selectedTeamId,
       ) ?? null;
 
+    const seasonState = await this.getSeasonState(gameSaveId);
+    const seasonSummary = seasonState.isSeasonFinished
+      ? await this.getSeasonSummary(gameSaveId)
+      : null;
+
+    const playedRoundFixtures = await this.prisma.saveFixture.findMany({
+      where: {
+        gameSaveId,
+        roundNumber: currentRound,
+      },
+      include: {
+        matchResult: true,
+        homeTeam: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+          },
+        },
+        awayTeam: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    const selectedTeam = gameSave.selectedTeamId
+      ? await this.prisma.saveTeam.findUnique({
+          where: {
+            id: gameSave.selectedTeamId,
+          },
+          select: {
+            id: true,
+          },
+        })
+      : null;
+
+    const mappedFixtures = playedRoundFixtures.map((fixture) =>
+      this.mapFixtureForResponse(fixture),
+    );
+
+    const myFixture = selectedTeam
+      ? mappedFixtures.find(
+          (fixture) =>
+            fixture.homeTeam.id === selectedTeam.id ||
+            fixture.awayTeam.id === selectedTeam.id,
+        ) ?? null
+      : null;
+
     return {
       message: 'Round played successfully',
       roundNumber: currentRound,
-      matchesPlayed: mappedFixtures.length,
+      matchesPlayed: fixtures.length,
       myFixture,
       fixtures: mappedFixtures,
+      seasonState,
+      seasonSummary,
     };
   }
 
@@ -1193,6 +1252,42 @@ export class UsersService {
       name: selectedTeam.name,
       shortName: selectedTeam.shortName,
       formation: selectedTeam.formation,
+      tacticStyle: selectedTeam.tacticStyle,
+      budget: selectedTeam.budget,
+    };
+  }
+
+  async updateSelectedTeamTacticStyle(saveId: string, tacticStyle: string) {
+    const allowedTactics = ['balanced', 'attacking', 'defensive'];
+
+    if (!allowedTactics.includes(tacticStyle)) {
+      throw new BadRequestException(
+        'Invalid tacticStyle. Allowed values: balanced, attacking, defensive',
+      );
+    }
+
+    const { selectedTeam } = await this.getRequiredSelectedTeam(saveId);
+
+    const updatedTeam = await this.prisma.saveTeam.update({
+      where: {
+        id: selectedTeam.id,
+      },
+      data: {
+        tacticStyle,
+      },
+      select: {
+        id: true,
+        name: true,
+        shortName: true,
+        formation: true,
+        tacticStyle: true,
+        budget: true,
+      },
+    });
+
+    return {
+      message: 'Tactic style updated successfully',
+      team: updatedTeam,
     };
   }
 
@@ -1258,6 +1353,254 @@ export class UsersService {
     };
   }
 
+  private async runBotAiBeforeRound(saveId: string) {
+    const gameSave = await this.prisma.gameSave.findUnique({
+      where: {
+        id: saveId,
+      },
+      select: {
+        selectedTeamId: true,
+      },
+    });
+
+    if (!gameSave?.selectedTeamId) {
+      return;
+    }
+
+    const botTeams = await this.prisma.saveTeam.findMany({
+      where: {
+        gameSaveId: saveId,
+        id: {
+          not: gameSave.selectedTeamId,
+        },
+      },
+      select: {
+        id: true,
+        formation: true,
+        budget: true,
+      },
+    });
+
+    for (const botTeam of botTeams) {
+      await this.autoPickTeamLineup(saveId, botTeam.id);
+
+      if (Math.random() < 0.25) {
+        await this.botListRandomPlayer(saveId, botTeam.id);
+      }
+
+      if (Math.random() < 0.15) {
+        await this.botBuyRandomPlayer(saveId, botTeam.id);
+      }
+    }
+  }
+
+  private async autoPickTeamLineup(saveId: string, saveTeamId: string) {
+    const team = await this.prisma.saveTeam.findFirst({
+      where: {
+        id: saveTeamId,
+        gameSaveId: saveId,
+      },
+      select: {
+        id: true,
+        formation: true,
+      },
+    });
+
+    if (!team) {
+      return;
+    }
+
+    const formation = isSupportedFormation(team.formation)
+      ? (team.formation as SupportedFormation)
+      : '4-3-3';
+
+    const players = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId: saveId,
+        saveTeamId: team.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        age: true,
+        position: true,
+        overall: true,
+        pace: true,
+        shooting: true,
+        passing: true,
+        dribbling: true,
+        defending: true,
+        physical: true,
+        role: true,
+        lineupPosition: true,
+        lineupSlot: true,
+        isTransferListed: true,
+        marketValue: true,
+        saveTeamId: true,
+        gameSaveId: true,
+      },
+      orderBy: [
+        { overall: 'desc' },
+        { name: 'asc' },
+      ],
+    });
+
+    if (players.length < 11) {
+      return;
+    }
+
+    const assignments = this.buildBestLineupAssignments(players, formation);
+    const starterIds = new Set(assignments.map((item) => item.playerId));
+
+    const benchPlayerIds = players
+      .filter((player) => !starterIds.has(player.id))
+      .sort((a, b) => b.overall - a.overall)
+      .slice(0, 7)
+      .map((player) => player.id);
+
+    await this.applySelectedTeamLineupState(
+      saveId,
+      team.id,
+      formation,
+      assignments.map((item) => ({
+        playerId: item.playerId,
+        lineupSlot: item.lineupSlot,
+      })),
+      benchPlayerIds,
+    );
+  }
+
+  private async botListRandomPlayer(saveId: string, saveTeamId: string) {
+    const candidates = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId: saveId,
+        saveTeamId,
+        isTransferListed: false,
+        role: {
+          in: ['bench', 'reserve'],
+        },
+      },
+      orderBy: {
+        overall: 'asc',
+      },
+      take: 5,
+    });
+
+    if (candidates.length === 0) {
+      return;
+    }
+
+    const player = candidates[Math.floor(Math.random() * candidates.length)];
+
+    await this.prisma.savePlayer.update({
+      where: {
+        id: player.id,
+      },
+      data: {
+        isTransferListed: true,
+      },
+    });
+
+    await this.createTransferHistoryEntry({
+      gameSaveId: saveId,
+      playerId: player.id,
+      fromSaveTeamId: saveTeamId,
+      toSaveTeamId: null,
+      type: 'LISTED',
+      marketValue: player.marketValue,
+    });
+  }
+
+  private async botBuyRandomPlayer(saveId: string, buyerTeamId: string) {
+    const buyer = await this.prisma.saveTeam.findFirst({
+      where: {
+        id: buyerTeamId,
+        gameSaveId: saveId,
+      },
+      select: {
+        id: true,
+        budget: true,
+      },
+    });
+
+    if (!buyer) {
+      return;
+    }
+
+    const affordablePlayers = await this.prisma.savePlayer.findMany({
+      where: {
+        gameSaveId: saveId,
+        isTransferListed: true,
+        saveTeamId: {
+          not: buyerTeamId,
+        },
+        marketValue: {
+          lte: buyer.budget,
+        },
+      },
+      orderBy: [
+        { overall: 'desc' },
+        { marketValue: 'asc' },
+      ],
+      take: 5,
+    });
+
+    if (affordablePlayers.length === 0) {
+      return;
+    }
+
+    const player =
+      affordablePlayers[Math.floor(Math.random() * affordablePlayers.length)];
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.saveTeam.update({
+        where: {
+          id: buyerTeamId,
+        },
+        data: {
+          budget: {
+            decrement: player.marketValue,
+          },
+        },
+      });
+
+      await tx.saveTeam.update({
+        where: {
+          id: player.saveTeamId,
+        },
+        data: {
+          budget: {
+            increment: player.marketValue,
+          },
+        },
+      });
+
+      await tx.savePlayer.update({
+        where: {
+          id: player.id,
+        },
+        data: {
+          saveTeamId: buyerTeamId,
+          isTransferListed: false,
+          role: 'bench',
+          lineupPosition: null,
+          lineupSlot: null,
+        },
+      });
+
+      await tx.transferHistory.create({
+        data: {
+          gameSaveId: saveId,
+          playerId: player.id,
+          fromSaveTeamId: player.saveTeamId,
+          toSaveTeamId: buyerTeamId,
+          type: 'BOUGHT',
+          marketValue: player.marketValue,
+        },
+      });
+    });
+  }
+
   private async getRequiredSelectedTeam(saveId: string) {
     const gameSave = await this.prisma.gameSave.findUnique({
       where: {
@@ -1265,8 +1608,13 @@ export class UsersService {
       },
       select: {
         id: true,
-        selectedTeamId: true,
-        currentRound: true,
+        name: true,
+        shortName: true,
+        formation: true,
+        tacticStyle: true,
+        budget: true,
+        gameSaveId: true,
+        saveLeagueId: true,
       },
     });
 
@@ -3336,6 +3684,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            budget: true,
           },
         },
       },
@@ -3353,46 +3702,78 @@ export class UsersService {
       throw new BadRequestException('Selected team cannot buy its own player');
     }
 
-    const updatedPlayer = await this.prisma.savePlayer.update({
-      where: {
-        id: player.id,
-      },
-      data: {
-        saveTeamId: selectedTeam.id,
-        isTransferListed: false,
-        role: 'bench',
-        lineupPosition: null,
-        lineupSlot: null,
-      },
-      select: {
-        id: true,
-        name: true,
-        age: true,
-        position: true,
-        overall: true,
-        pace: true,
-        shooting: true,
-        passing: true,
-        dribbling: true,
-        defending: true,
-        physical: true,
-        role: true,
-        lineupPosition: true,
-        lineupSlot: true,
-        isTransferListed: true,
-        marketValue: true,
-        saveTeamId: true,
-        gameSaveId: true,
-      },
-    });
+    if (selectedTeam.budget < player.marketValue) {
+      throw new BadRequestException('Not enough budget to buy this player');
+    }
 
-    await this.createTransferHistoryEntry({
-      gameSaveId: saveId,
-      playerId: player.id,
-      fromSaveTeamId: player.saveTeamId,
-      toSaveTeamId: selectedTeam.id,
-      type: 'BOUGHT',
-      marketValue: player.marketValue,
+    const updatedPlayer = await this.prisma.$transaction(async (tx) => {
+      await tx.saveTeam.update({
+        where: {
+          id: selectedTeam.id,
+        },
+        data: {
+          budget: {
+            decrement: player.marketValue,
+          },
+        },
+      });
+
+      await tx.saveTeam.update({
+        where: {
+          id: player.saveTeamId,
+        },
+        data: {
+          budget: {
+            increment: player.marketValue,
+          },
+        },
+      });
+
+      const transferredPlayer = await tx.savePlayer.update({
+        where: {
+          id: player.id,
+        },
+        data: {
+          saveTeamId: selectedTeam.id,
+          isTransferListed: false,
+          role: 'bench',
+          lineupPosition: null,
+          lineupSlot: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          age: true,
+          position: true,
+          overall: true,
+          pace: true,
+          shooting: true,
+          passing: true,
+          dribbling: true,
+          defending: true,
+          physical: true,
+          role: true,
+          lineupPosition: true,
+          lineupSlot: true,
+          isTransferListed: true,
+          marketValue: true,
+          saveTeamId: true,
+          gameSaveId: true,
+        },
+      });
+
+      await tx.transferHistory.create({
+        data: {
+          gameSaveId: saveId,
+          playerId: player.id,
+          fromSaveTeamId: player.saveTeamId,
+          toSaveTeamId: selectedTeam.id,
+          type: 'BOUGHT',
+          marketValue: player.marketValue,
+        },
+      });
+
+      return transferredPlayer;
     });
 
     return {
@@ -3574,6 +3955,7 @@ export class UsersService {
       },
       select: {
         formation: true,
+        tacticStyle: true,
       },
     });
 
@@ -3598,12 +3980,15 @@ export class UsersService {
 
       const effectiveOverall = Math.round(player.overall * multiplier);
 
-      return {
-        ...player,
-        tacticalPosition,
-        multiplier,
-        effectiveOverall,
-      };
+      return this.applyTacticStyleToStrengths(
+        {
+          overall,
+          defense,
+          midfield,
+          attack,
+        },
+        team?.tacticStyle ?? 'balanced',
+      );
     });
 
     const defensePositions: PlayerPosition[] = ['GK', 'LB', 'CB', 'RB'];
@@ -3649,6 +4034,44 @@ export class UsersService {
       defense,
       midfield,
       attack,
+    };
+  }
+
+  private applyTacticStyleToStrengths(
+    strengths: {
+      overall: number;
+      defense: number;
+      midfield: number;
+      attack: number;
+    },
+    tacticStyle: string,
+  ) {
+    let defense = strengths.defense;
+    let midfield = strengths.midfield;
+    let attack = strengths.attack;
+
+    if (tacticStyle === 'attacking') {
+      attack += 5;
+      midfield += 1;
+      defense -= 3;
+    }
+
+    if (tacticStyle === 'defensive') {
+      defense += 5;
+      midfield += 1;
+      attack -= 3;
+    }
+
+    defense = this.clampNumber(defense, 40, 99);
+    midfield = this.clampNumber(midfield, 40, 99);
+    attack = this.clampNumber(attack, 40, 99);
+
+    return {
+      overall: Math.round((defense + midfield + attack) / 3),
+      defense,
+      midfield,
+      attack,
+      tacticStyle,
     };
   }
 

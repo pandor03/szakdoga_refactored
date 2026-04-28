@@ -12,6 +12,7 @@ import {
   saveSelectedTeamLineup,
   simulateCurrentRound,
   updateSelectedTeamFormation,
+  updateSelectedTeamTacticStyle,
   updatePlayerLineupPosition,
   updatePlayerRole,
   updatePlayerTransferListStatus,
@@ -493,6 +494,35 @@ export const useScreenStore = create((set, get) => ({
         squadScreenError: getErrorMessage(
           error,
           "Nem sikerült módosítani a formációt."
+        ),
+      });
+
+      throw error;
+    }
+  },
+
+  changeTacticStyle: async (saveId, tacticStyle) => {
+    set({
+      isUpdatingSquadPlayer: true,
+      squadScreenError: null,
+    });
+
+    try {
+      const result = await updateSelectedTeamTacticStyle(saveId, tacticStyle);
+
+      await get().loadSquadScreen(saveId);
+
+      set({
+        isUpdatingSquadPlayer: false,
+      });
+
+      return result;
+    } catch (error) {
+      set({
+        isUpdatingSquadPlayer: false,
+        squadScreenError: getErrorMessage(
+          error,
+          "Nem sikerült módosítani a taktikát."
         ),
       });
 

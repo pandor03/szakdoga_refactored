@@ -241,6 +241,9 @@ export default function TransferPage() {
           subtitle={`${transferScreen.team?.name} (${transferScreen.team?.shortName})`}
         >
           <GameNav />
+          <p className="muted-text">
+            Budget: €{Number(transferScreen?.team?.budget || 0).toLocaleString()}
+          </p>
         </PageHero>
 
         {error && <p className="error-text">{error}</p>}

@@ -57,11 +57,13 @@ model BaseTeam {
 }
 
 model SaveTeam {
-  id        String   @id @default(cuid())
-  name      String
-  shortName String
-  formation String   @default("4-3-3")
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String
+  formation   String   @default("4-3-3")
+  tacticStyle String   @default("balanced")
+  budget      Int      @default(100000000)
+  createdAt   DateTime @default(now())
 
   gameSaveId String
   gameSave   GameSave @relation(fields: [gameSaveId], references: [id])

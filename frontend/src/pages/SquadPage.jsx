@@ -275,6 +275,9 @@ export default function SquadPage() {
               {squadScreen.team?.shortName} | {currentFormation} | Keret méret:{" "}
               {squadScreen.squad?.squadSize}
             </p>
+            <p className="muted-text">
+              Budget: €{Number(squadScreen?.team?.budget || 0).toLocaleString()}
+            </p>
           </div>
 
           <GameNav />
@@ -298,6 +301,17 @@ export default function SquadPage() {
               onFormationChange={handleFormationChange}
               onAutoPick={handleAutoPick}
             />
+
+            <select
+              value={squadScreen?.team?.tacticStyle || "balanced"}
+              onChange={(event) =>
+                changeTacticStyle(activeSaveId, event.target.value)
+              }
+            >
+              <option value="balanced">Balanced</option>
+              <option value="attacking">Attacking</option>
+              <option value="defensive">Defensive</option>
+            </select>
           </div>
 
           <LineupPitch

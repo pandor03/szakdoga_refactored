@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "SaveTeam" ADD COLUMN     "budget" INTEGER NOT NULL DEFAULT 100000000,
+ADD COLUMN     "tacticStyle" TEXT NOT NULL DEFAULT 'balanced';
