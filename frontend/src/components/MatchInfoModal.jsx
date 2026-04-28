@@ -67,6 +67,32 @@ const getTeamOverall = (players) => {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 };
 
+const getPlayerSubstitutionStatus = (player, substitutions = []) => {
+  const subOut = substitutions.find(
+    (event) => event.playerOut?.id === player.id
+  );
+
+  if (subOut) {
+    return {
+      type: "out",
+      text: `Lecserélve ${subOut.minute}'`,
+    };
+  }
+
+  const subIn = substitutions.find(
+    (event) => event.playerIn?.id === player.id
+  );
+
+  if (subIn) {
+    return {
+      type: "in",
+      text: `Beállt ${subIn.minute}'`,
+    };
+  }
+
+  return null;
+};
+
 function PlayerStatsTooltip({ player }) {
   return (
     <div className="player-tooltip">
@@ -100,12 +126,21 @@ function PlayerStatsTooltip({ player }) {
   );
 }
 
-function PlayerInfoRow({ player }) {
+function PlayerInfoRow({ player, substitutions = [] }) {
   const fit = getFitData(player);
+  const substitutionStatus = getPlayerSubstitutionStatus(player, substitutions);
 
   return (
     <div className="match-team-squad-row player-info-hover-row">
-      <strong>{player.name}</strong>
+      <strong>
+        {player.name}
+        {substitutionStatus && (
+          <small className={`substitution-badge substitution-${substitutionStatus.type}`}>
+            {substitutionStatus.text}
+          </small>
+        )}
+      </strong>
+
       <span>{player.position || "-"}</span>
       <em className={fit.className}>{getPlayerOverall(player)}</em>
 
@@ -165,6 +200,7 @@ function TeamSnapshotPreview({
   formation,
   lineup,
   bench,
+  substitutions = [],
   onTeamClick,
   isLoading = false,
   loadingText = "Keret betöltése...",
@@ -188,7 +224,11 @@ function TeamSnapshotPreview({
           <h4>Kezdő</h4>
           <div className="match-team-squad-list">
             {lineup.slice(0, 11).map((player) => (
-              <PlayerInfoRow key={player.id} player={player} />
+              <PlayerInfoRow
+                key={player.id}
+                player={player}
+                substitutions={substitutions}
+              />
             ))}
           </div>
 
@@ -196,7 +236,11 @@ function TeamSnapshotPreview({
           {bench?.length ? (
             <div className="match-team-squad-list match-team-bench-list">
               {bench.map((player) => (
-                <PlayerInfoRow key={player.id} player={player} />
+                <PlayerInfoRow
+                  key={player.id}
+                  player={player}
+                  substitutions={substitutions}
+                />
               ))}
             </div>
           ) : (
@@ -254,6 +298,12 @@ export default function MatchInfoModal({ fixture, saveId, onClose, onTeamClick }
   const matchSummary = fixture.matchSummary;
   const hasSnapshot = fixture.isPlayed && matchSummary;
 
+  const homeSubstitutions =
+    matchSummary?.substitutions?.filter((event) => event.teamSide === "home") || [];
+
+  const awaySubstitutions =
+    matchSummary?.substitutions?.filter((event) => event.teamSide === "away") || [];
+
   return (
     <div className="modal-backdrop">
       <div className="match-info-modal match-info-modal-wide">
@@ -281,16 +331,18 @@ export default function MatchInfoModal({ fixture, saveId, onClose, onTeamClick }
                 formation={matchSummary.homeFormation}
                 lineup={matchSummary.homeLineup || []}
                 bench={matchSummary.homeBench || []}
+                substitutions={homeSubstitutions}
                 onTeamClick={onTeamClick}
               />
 
               <TeamSnapshotPreview
-                team={fixture.awayTeam}
-                formation={matchSummary.awayFormation}
-                lineup={matchSummary.awayLineup || []}
-                bench={matchSummary.awayBench || []}
-                onTeamClick={onTeamClick}
-              />
+              team={fixture.awayTeam}
+              formation={matchSummary.awayFormation}
+              lineup={matchSummary.awayLineup || []}
+              bench={matchSummary.awayBench || []}
+              substitutions={awaySubstitutions}
+              onTeamClick={onTeamClick}
+            />
             </>
           ) : (
             <>

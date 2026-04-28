@@ -788,7 +788,7 @@ export class UsersService {
         gameSaveId,
         fixture.homeTeamId,
         simulation.homeGoals,
-        homeSubResult.lineup,
+        homeSnapshot.lineup,
         'home',
       );
 
@@ -796,7 +796,7 @@ export class UsersService {
         gameSaveId,
         fixture.awayTeamId,
         simulation.awayGoals,
-        awaySubResult.lineup,
+        awaySnapshot.lineup,
         'away',
       );
 
@@ -815,10 +815,10 @@ export class UsersService {
         {
           homeFormation: homeSnapshot.formation,
           awayFormation: awaySnapshot.formation,
-          homeLineup: homeSubResult.lineup,
-          awayLineup: awaySubResult.lineup,
-          homeBench: homeSubResult.bench,
-          awayBench: awaySubResult.bench,
+          homeLineup: homeSnapshot.lineup,
+          awayLineup: awaySnapshot.lineup,
+          homeBench: homeSnapshot.bench,
+          awayBench: awaySnapshot.bench,
           events: matchEvents,
         },
       );
