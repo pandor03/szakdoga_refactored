@@ -246,8 +246,8 @@ export default function FixturesPage() {
               <div className="round-summary-section">
                 <h3>Saját meccs</h3>
                 <MatchCard
-                  fixture={myFixture}
-                  onClick={() => openMatchModal(myFixture)}
+                  fixture={roundSummary.myFixture}
+                  onClick={() => openMatchModal(roundSummary.myFixture)}
                   onTeamClick={openTeamModal}
                 />
               </div>
