@@ -1,76 +1,58 @@
 import { useEffect, useState } from "react";
-import { getTeamDetail, getTeamFixtures, getTeamPlayers } from "../api/screenApi";
+import {
+  getSquadScreen,
+  getTeamDetail,
+  getTeamFixtures,
+  getTeamPlayers,
+} from "../api/screenApi";
 import InlineLoader from "./InlineLoader";
 import EmptyState from "./EmptyState";
 import MatchCard from "./MatchCard";
 import MatchInfoModal from "./MatchInfoModal";
+import {
+  getDisplayedPosition,
+  getFitData,
+  getFitOverall,
+  getRawOverall,
+  getTeamFitOverall,
+} from "../utils/positionFit";
 
-const normalizePosition = (value) => {
-  if (!value) return "";
+const uniquePlayers = (players) => {
+  const map = new Map();
 
-  return String(value)
-    .toUpperCase()
-    .replace(/[0-9]/g, "")
-    .replace("_", "")
-    .trim();
+  players.filter(Boolean).forEach((player) => {
+    map.set(player.id, player);
+  });
+
+  return Array.from(map.values());
 };
 
-const getFitData = (player) => {
-  const playerPosition = normalizePosition(player.position);
-  const targetPosition = normalizePosition(
-    player.lineupPosition || player.tacticalPosition || player.position
-  );
-
-  if (playerPosition === targetPosition) {
-    return { multiplier: 1, className: "fit-good" };
-  }
-
-  const midfieldPositions = ["CM", "CDM", "CAM"];
-
-  if (
-    midfieldPositions.includes(playerPosition) &&
-    midfieldPositions.includes(targetPosition)
-  ) {
-    return { multiplier: 0.9, className: "fit-ok" };
-  }
-
-  return { multiplier: 0.75, className: "fit-bad" };
-};
-
-const getRawOverall = (player) =>
-  player.overall ?? player.rating ?? player.ovr ?? player.stats?.overall ?? "-";
-
-const getFitOverall = (player) => {
-  if (player.effectiveOverall !== undefined && player.effectiveOverall !== null) {
-    return player.effectiveOverall;
-  }
-
-  const rawOverall = Number(getRawOverall(player));
-
-  if (Number.isNaN(rawOverall)) {
-    return "-";
-  }
-
-  return Math.round(rawOverall * getFitData(player).multiplier);
-};
-
-const getTeamOverall = (players) => {
-  const values = players
-    .slice(0, 11)
-    .map((player) => Number(getFitOverall(player)))
-    .filter((value) => !Number.isNaN(value));
-
-  if (!values.length) return "-";
-
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-};
+const mapLineupSlotsToPlayers = (slots = []) =>
+  slots
+    .map((slot) =>
+      slot.player
+        ? {
+            ...slot.player,
+            playedPosition: slot.tacticalPosition,
+            tacticalPosition: slot.tacticalPosition,
+            lineupSlot: slot.slotId,
+          }
+        : null
+    )
+    .filter(Boolean);
 
 function PlayerStatsTooltip({ player }) {
   return (
     <div className="player-tooltip">
       <strong>{player.name}</strong>
+
       <p>
-        {player.position} | OVR: {getRawOverall(player)}
+        Saját poszt: {player.position || "-"} | Felállás poszt:{" "}
+        {getDisplayedPosition(player) || "-"}
+      </p>
+
+      <p>
+        OVR: {getRawOverall(player)} | Fit OVR: {getFitOverall(player)}
       </p>
 
       {["pace", "shooting", "passing", "dribbling", "defending", "physical"].map(
@@ -85,14 +67,19 @@ function PlayerStatsTooltip({ player }) {
   );
 }
 
-function PlayerInfoRow({ player, useFitOverall = false }) {
+function PlayerInfoRow({ player, useFitOverall = false, showLineupPosition = false }) {
   const fit = getFitData(player);
   const displayedOverall = useFitOverall ? getFitOverall(player) : getRawOverall(player);
+  const displayedPosition = showLineupPosition
+    ? getDisplayedPosition(player)
+    : player.position;
 
   return (
     <div className="team-lineup-row player-info-hover-row">
       <strong>{player.name}</strong>
-      <span>{player.position}</span>
+
+      <span>{displayedPosition || "-"}</span>
+
       <span className={`team-lineup-ovr ${useFitOverall ? fit.className : "raw-ovr"}`}>
         {displayedOverall}
       </span>
@@ -105,6 +92,7 @@ function PlayerInfoRow({ player, useFitOverall = false }) {
 export default function TeamInfoModal({ saveId, teamId, onClose }) {
   const [teamDetail, setTeamDetail] = useState(null);
   const [players, setPlayers] = useState([]);
+  const [lineupSlots, setLineupSlots] = useState([]);
   const [fixtures, setFixtures] = useState([]);
   const [selectedFixture, setSelectedFixture] = useState(null);
   const [error, setError] = useState("");
@@ -120,30 +108,23 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
       getTeamDetail(saveId, teamId),
       getTeamPlayers(saveId, teamId),
       getTeamFixtures(saveId, teamId),
+      getSquadScreen(saveId).catch(() => null),
     ])
-      .then(([detailData, playersData, fixturesData]) => {
-        console.log("TEAM INFO detailData:", detailData);
-        console.log("TEAM INFO playersData:", playersData);
-        console.table(
-          (playersData?.players || []).map((p) => ({
-            name: p.name,
-            position: p.position,
-            lineupPosition: p.lineupPosition,
-            tacticalPosition: p.tacticalPosition,
-            lineupSlot: p.lineupSlot,
-            effectiveOverall: p.effectiveOverall,
-            overall: p.overall,
-          }))
-        );
-        
-        setTeamDetail(detailData);
+      .then(([detailData, playersData, fixturesData, squadScreen]) => {
+        const isSelectedTeam = squadScreen?.team?.id === teamId;
 
-        const normalizedPlayers = Array.isArray(playersData)
-          ? playersData
-          : playersData?.players ||
-            playersData?.team?.players ||
-            detailData?.players ||
-            [];
+        setTeamDetail(
+          isSelectedTeam
+            ? {
+                ...detailData,
+                team: {
+                  ...(detailData?.team || {}),
+                  ...(squadScreen?.team || {}),
+                },
+                formation: squadScreen?.team?.formation || squadScreen?.lineup?.formation,
+              }
+            : detailData
+        );
 
         const normalizedFixtures = Array.isArray(fixturesData)
           ? fixturesData
@@ -153,6 +134,26 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
               ...(detailData?.upcomingFixtures || []),
             ];
 
+        if (isSelectedTeam) {
+          const previewSlots = squadScreen?.lineup?.preview || [];
+          const starters = mapLineupSlotsToPlayers(previewSlots);
+          const bench = squadScreen?.lineup?.bench || [];
+          const reserve = squadScreen?.lineup?.reserve || [];
+
+          setLineupSlots(previewSlots);
+          setPlayers(uniquePlayers([...starters, ...bench, ...reserve]));
+          setFixtures(normalizedFixtures);
+          return;
+        }
+
+        const normalizedPlayers = Array.isArray(playersData)
+          ? playersData
+          : playersData?.players ||
+            playersData?.team?.players ||
+            detailData?.players ||
+            [];
+
+        setLineupSlots([]);
         setPlayers(normalizedPlayers);
         setFixtures(normalizedFixtures);
       })
@@ -167,18 +168,22 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
 
   const team = teamDetail?.team || teamDetail;
 
+  const startersFromSlots = mapLineupSlotsToPlayers(lineupSlots);
+
   const starterCandidates = players.filter(
     (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
   );
 
   const starters =
-    starterCandidates.length > 0
-      ? starterCandidates
-      : [...players]
-          .sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))
-          .slice(0, 11);
+    startersFromSlots.length > 0
+      ? startersFromSlots
+      : starterCandidates.length > 0
+        ? starterCandidates
+        : [...players]
+            .sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0))
+            .slice(0, 11);
 
-  const teamOverall = getTeamOverall(starters);
+  const teamOverall = getTeamFitOverall(starters);
 
   return (
     <div className="modal-backdrop">
@@ -219,6 +224,7 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
                       key={player.id}
                       player={player}
                       useFitOverall
+                      showLineupPosition
                     />
                   ))}
                 </div>

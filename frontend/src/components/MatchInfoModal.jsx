@@ -1,71 +1,39 @@
 import { useEffect, useState } from "react";
-import { getTeamPlayers } from "../api/screenApi";
+import { getSquadScreen, getTeamPlayers } from "../api/screenApi";
 import InlineLoader from "./InlineLoader";
 import EmptyState from "./EmptyState";
 import MatchCard from "./MatchCard";
+import {
+  getDisplayedPosition,
+  getFitData,
+  getFitOverall,
+  getRawOverall,
+  getTeamFitOverall,
+} from "../utils/positionFit";
 
-const normalizePosition = (value) => {
-  if (!value) return "";
+const uniquePlayers = (players) => {
+  const map = new Map();
 
-  return String(value)
-    .toUpperCase()
-    .replace(/[0-9]/g, "")
-    .replace("_", "")
-    .trim();
+  players.filter(Boolean).forEach((player) => {
+    map.set(player.id, player);
+  });
+
+  return Array.from(map.values());
 };
 
-const getTargetPosition = (player) =>
-  player.playedPosition ||
-  player.tacticalPosition ||
-  player.position;
-
-const MIDFIELD_POSITIONS = ["CM", "CDM", "CAM"];
-
-const getFitData = (player) => {
-  const playerPosition = normalizePosition(player.position);
-  const targetPosition = normalizePosition(getTargetPosition(player));
-
-  if (!playerPosition || !targetPosition) {
-    return { multiplier: 1, className: "fit-good" };
-  }
-
-  if (playerPosition === targetPosition) {
-    return { multiplier: 1, className: "fit-good" };
-  }
-
-  if (
-    MIDFIELD_POSITIONS.includes(playerPosition) &&
-    MIDFIELD_POSITIONS.includes(targetPosition)
-  ) {
-    return { multiplier: 0.9, className: "fit-ok" };
-  }
-
-  return { multiplier: 0.75, className: "fit-bad" };
-};
-
-const getRawOverall = (player) =>
-  player.overall ?? player.rating ?? player.ovr ?? player.stats?.overall ?? "-";
-
-const getPlayerOverall = (player) => {
-  const rawOverall = Number(getRawOverall(player));
-
-  if (Number.isNaN(rawOverall)) {
-    return "-";
-  }
-
-  return Math.round(rawOverall * getFitData(player).multiplier);
-};
-
-const getTeamOverall = (players) => {
-  const values = players
-    .slice(0, 11)
-    .map((player) => Number(getPlayerOverall(player)))
-    .filter((value) => !Number.isNaN(value));
-
-  if (!values.length) return "-";
-
-  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
-};
+const mapLineupSlotsToPlayers = (slots = []) =>
+  slots
+    .map((slot) =>
+      slot.player
+        ? {
+            ...slot.player,
+            playedPosition: slot.tacticalPosition,
+            tacticalPosition: slot.tacticalPosition,
+            lineupSlot: slot.slotId,
+          }
+        : null
+    )
+    .filter(Boolean);
 
 const getPlayerSubstitutionStatus = (player, substitutions = []) => {
   const subOut = substitutions.find(
@@ -100,11 +68,11 @@ function PlayerStatsTooltip({ player }) {
 
       <p>
         Saját poszt: {player.position || "-"} | Játszott poszt:{" "}
-        {getTargetPosition(player) || "-"}
+        {getDisplayedPosition(player) || "-"}
       </p>
 
       <p>
-        OVR: {getRawOverall(player)} | Fit OVR: {getPlayerOverall(player)}
+        OVR: {getRawOverall(player)} | Fit OVR: {getFitOverall(player)}
       </p>
 
       {player.stamina !== undefined && (
@@ -126,9 +94,12 @@ function PlayerStatsTooltip({ player }) {
   );
 }
 
-function PlayerInfoRow({ player, substitutions = [] }) {
+function PlayerInfoRow({ player, substitutions = [], showMatchPosition = false }) {
   const fit = getFitData(player);
   const substitutionStatus = getPlayerSubstitutionStatus(player, substitutions);
+  const displayedPosition = showMatchPosition
+    ? getDisplayedPosition(player)
+    : player.position;
 
   return (
     <div className="match-team-squad-row player-info-hover-row">
@@ -141,8 +112,8 @@ function PlayerInfoRow({ player, substitutions = [] }) {
         )}
       </strong>
 
-      <span>{player.position || "-"}</span>
-      <em className={fit.className}>{getPlayerOverall(player)}</em>
+      <span>{displayedPosition || "-"}</span>
+      <em className={fit.className}>{getFitOverall(player)}</em>
 
       <PlayerStatsTooltip player={player} />
     </div>
@@ -150,7 +121,9 @@ function PlayerInfoRow({ player, substitutions = [] }) {
 }
 
 function TeamCurrentSquadPreview({ saveId, team, onTeamClick }) {
+  const [lineupSlots, setLineupSlots] = useState([]);
   const [players, setPlayers] = useState([]);
+  const [formation, setFormation] = useState(team?.formation || "");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -158,46 +131,62 @@ function TeamCurrentSquadPreview({ saveId, team, onTeamClick }) {
 
     setIsLoading(true);
 
-    getTeamPlayers(saveId, team.id)
-      .then((data) => {
-        console.log("MATCH INFO team players response:", team?.shortName, data);
-        console.table(
-          (data?.players || []).map((p) => ({
-            name: p.name,
-            position: p.position,
-            lineupPosition: p.lineupPosition,
-            tacticalPosition: p.tacticalPosition,
-            playedPosition: p.playedPosition,
-            lineupSlot: p.lineupSlot,
-            effectiveOverall: p.effectiveOverall,
-            overall: p.overall,
-          }))
-        );
-        const normalizedPlayers = Array.isArray(data)
-          ? data
-          : data?.players || data?.team?.players || data?.data || [];
+    Promise.all([
+      getTeamPlayers(saveId, team.id).catch(() => null),
+      getSquadScreen(saveId).catch(() => null),
+    ])
+      .then(([teamPlayersData, squadScreen]) => {
+        const isSelectedTeam = squadScreen?.team?.id === team.id;
 
+        if (isSelectedTeam) {
+          const previewSlots = squadScreen?.lineup?.preview || [];
+          const starterPlayers = mapLineupSlotsToPlayers(previewSlots);
+          const benchPlayers = squadScreen?.lineup?.bench || [];
+          const reservePlayers = squadScreen?.lineup?.reserve || [];
+
+          setLineupSlots(previewSlots);
+          setPlayers(uniquePlayers([...starterPlayers, ...benchPlayers, ...reservePlayers]));
+          setFormation(squadScreen?.team?.formation || squadScreen?.lineup?.formation || team?.formation || "");
+          return;
+        }
+
+        const normalizedPlayers = Array.isArray(teamPlayersData)
+          ? teamPlayersData
+          : teamPlayersData?.players ||
+            teamPlayersData?.team?.players ||
+            teamPlayersData?.data ||
+            [];
+
+        setLineupSlots([]);
         setPlayers(normalizedPlayers);
+        setFormation(teamPlayersData?.team?.formation || team?.formation || "");
       })
-      .catch(() => setPlayers([]))
+      .catch(() => {
+        setLineupSlots([]);
+        setPlayers([]);
+      })
       .finally(() => setIsLoading(false));
-  }, [saveId, team?.id]);
+  }, [saveId, team?.id, team?.formation]);
+
+  const startersFromSlots = mapLineupSlotsToPlayers(lineupSlots);
 
   const starters =
-    players.filter(
-      (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
-    ).length > 0
-      ? players.filter(
+    startersFromSlots.length > 0
+      ? startersFromSlots
+      : players.filter(
           (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
-        )
-      : [...players].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 11);
+        ).length > 0
+        ? players.filter(
+            (p) => p.role === "starter" || p.lineupSlot || p.lineupPosition
+          )
+        : [...players].sort((a, b) => (b.overall ?? 0) - (a.overall ?? 0)).slice(0, 11);
 
   const bench = players.filter((p) => p.role === "bench");
 
   return (
     <TeamSnapshotPreview
       team={team}
-      formation={team?.formation}
+      formation={formation}
       lineup={starters}
       bench={bench}
       onTeamClick={onTeamClick}
@@ -219,7 +208,7 @@ function TeamSnapshotPreview({
   loadingText = "Keret betöltése...",
   emptyText = "Nincs keret adat.",
 }) {
-  const teamOverall = getTeamOverall(lineup || []);
+  const teamOverall = getTeamFitOverall(lineup || []);
 
   return (
     <section className="match-team-squad-preview">
@@ -241,6 +230,7 @@ function TeamSnapshotPreview({
                 key={player.id}
                 player={player}
                 substitutions={substitutions}
+                showMatchPosition
               />
             ))}
           </div>
@@ -349,13 +339,13 @@ export default function MatchInfoModal({ fixture, saveId, onClose, onTeamClick }
               />
 
               <TeamSnapshotPreview
-              team={fixture.awayTeam}
-              formation={matchSummary.awayFormation}
-              lineup={matchSummary.awayLineup || []}
-              bench={matchSummary.awayBench || []}
-              substitutions={awaySubstitutions}
-              onTeamClick={onTeamClick}
-            />
+                team={fixture.awayTeam}
+                formation={matchSummary.awayFormation}
+                lineup={matchSummary.awayLineup || []}
+                bench={matchSummary.awayBench || []}
+                substitutions={awaySubstitutions}
+                onTeamClick={onTeamClick}
+              />
             </>
           ) : (
             <>
