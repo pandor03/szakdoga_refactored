@@ -160,6 +160,19 @@ function TeamCurrentSquadPreview({ saveId, team, onTeamClick }) {
 
     getTeamPlayers(saveId, team.id)
       .then((data) => {
+        console.log("MATCH INFO team players response:", team?.shortName, data);
+        console.table(
+          (data?.players || []).map((p) => ({
+            name: p.name,
+            position: p.position,
+            lineupPosition: p.lineupPosition,
+            tacticalPosition: p.tacticalPosition,
+            playedPosition: p.playedPosition,
+            lineupSlot: p.lineupSlot,
+            effectiveOverall: p.effectiveOverall,
+            overall: p.overall,
+          }))
+        );
         const normalizedPlayers = Array.isArray(data)
           ? data
           : data?.players || data?.team?.players || data?.data || [];

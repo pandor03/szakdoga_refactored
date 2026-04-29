@@ -122,6 +122,20 @@ export default function TeamInfoModal({ saveId, teamId, onClose }) {
       getTeamFixtures(saveId, teamId),
     ])
       .then(([detailData, playersData, fixturesData]) => {
+        console.log("TEAM INFO detailData:", detailData);
+        console.log("TEAM INFO playersData:", playersData);
+        console.table(
+          (playersData?.players || []).map((p) => ({
+            name: p.name,
+            position: p.position,
+            lineupPosition: p.lineupPosition,
+            tacticalPosition: p.tacticalPosition,
+            lineupSlot: p.lineupSlot,
+            effectiveOverall: p.effectiveOverall,
+            overall: p.overall,
+          }))
+        );
+        
         setTeamDetail(detailData);
 
         const normalizedPlayers = Array.isArray(playersData)

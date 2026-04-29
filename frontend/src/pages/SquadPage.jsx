@@ -265,6 +265,20 @@ export default function SquadPage() {
     return <p>Nincs adat</p>;
   }
 
+  console.log("SQUAD lineupSlots:", lineupSlots);
+
+  console.table(
+    lineupSlots.map((slot) => ({
+      slotId: slot.slotId,
+      tacticalPosition: slot.tacticalPosition,
+      playerName: slot.player?.name,
+      playerDefaultPosition: slot.player?.position,
+      playerLineupPosition: slot.player?.lineupPosition,
+      playerLineupSlot: slot.player?.lineupSlot,
+      effectiveOverall: slot.player?.effectiveOverall,
+    }))
+  );
+
   return (
     <div className="page-shell">
       <div className="page-container">
