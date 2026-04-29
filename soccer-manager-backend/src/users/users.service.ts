@@ -750,7 +750,21 @@ export class UsersService {
         awayLineup: snapshot?.awayLineup ?? [],
         homeBench: snapshot?.homeBench ?? [],
         awayBench: snapshot?.awayBench ?? [],
-        events: snapshot?.events ?? [],
+        ...(snapshot?.events?.length
+          ? {
+              events: {
+                create: snapshot.events.map((event) => ({
+                  minute: event.minute,
+                  type: event.type,
+                  teamSide: event.teamSide,
+                  playerName: event.playerName ?? null,
+                  assistName: event.assistName ?? null,
+                  playerInName: event.playerInName ?? null,
+                  playerOutName: event.playerOutName ?? null,
+                })),
+              },
+            }
+          : {}),
         matchSummary,
       },
     });
@@ -988,6 +1002,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -995,6 +1010,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -1221,6 +1237,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -1228,6 +1245,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -1268,6 +1286,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -1275,6 +1294,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -1345,6 +1365,7 @@ export class UsersService {
       id: string;
       name: string;
       shortName: string;
+      formation?: string;
     } | null = null;
 
     if (gameSave.selectedTeamId) {
@@ -2053,6 +2074,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2060,6 +2082,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2097,6 +2120,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2104,6 +2128,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2168,6 +2193,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2175,6 +2201,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2215,6 +2242,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2222,6 +2250,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2275,11 +2304,13 @@ export class UsersService {
         id: string;
         name: string;
         shortName: string;
+        formation?: string;
       };
       awayTeam: {
         id: string;
         name: string;
         shortName: string;
+        formation?: string;
       };
       isPlayed: boolean;
       homeGoals: number | null;
@@ -2312,6 +2343,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
           awayTeam: {
@@ -2319,6 +2351,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
         },
@@ -2553,6 +2586,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2560,6 +2594,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2632,11 +2667,13 @@ export class UsersService {
         id: string;
         name: string;
         shortName: string;
+        formation?: string;
       };
       awayTeam: {
         id: string;
         name: string;
         shortName: string;
+        formation?: string;
       };
       isPlayed: boolean;
       homeGoals: number | null;
@@ -2669,6 +2706,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
           awayTeam: {
@@ -2676,6 +2714,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
         },
@@ -2702,6 +2741,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2709,6 +2749,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2742,6 +2783,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
           awayTeam: {
@@ -2749,6 +2791,7 @@ export class UsersService {
               id: true,
               name: true,
               shortName: true,
+              formation: true,
             },
           },
         },
@@ -2809,6 +2852,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2816,6 +2860,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -2933,6 +2978,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -2940,6 +2986,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -3078,6 +3125,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -3085,6 +3133,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -3203,6 +3252,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -3210,6 +3260,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -3461,6 +3512,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -3468,6 +3520,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -3505,6 +3558,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -3512,6 +3566,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -4356,12 +4411,21 @@ export class UsersService {
         gameSaveId: saveId,
       },
       include: {
-        matchResult: true,
+        matchResult: {
+          include: {
+            events: {
+              orderBy: {
+                minute: 'asc',
+              },
+            },
+          },
+        },
         homeTeam: {
           select: {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -4369,6 +4433,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -4388,9 +4453,18 @@ export class UsersService {
       fixture.awayTeamId,
     );
 
-    await this.saveMatchResult(
+    const matchResult = await this.saveMatchResult(
       saveId,
       fixture.id,
+      simulation.homeGoals,
+      simulation.awayGoals,
+    );
+
+    await this.generateMatchEvents(
+      matchResult.id,
+      saveId,
+      fixture.homeTeamId,
+      fixture.awayTeamId,
       simulation.homeGoals,
       simulation.awayGoals,
     );
@@ -4408,6 +4482,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
         awayTeam: {
@@ -4415,6 +4490,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
+            formation: true,
           },
         },
       },
@@ -4448,6 +4524,7 @@ export class UsersService {
         awayStrength: simulation.awayStrength,
       },
       seasonState: updatedSeasonState,
+      events: updatedFixture.matchResult.events,
     };
   }
 
@@ -4894,6 +4971,84 @@ export class UsersService {
         away: this.roundToOne(awayLambda),
       },
     };
+  }
+
+  private async generateMatchEvents(
+    matchResultId: string,
+    saveId: string,
+    homeTeamId: string,
+    awayTeamId: string,
+    homeGoals: number,
+    awayGoals: number,
+  ) {
+    const [homePlayers, awayPlayers] = await Promise.all([
+      this.prisma.savePlayer.findMany({
+        where: {
+          gameSaveId: saveId,
+          saveTeamId: homeTeamId,
+          role: 'starter',
+          position: {
+            in: ['ST', 'LW', 'RW', 'CAM', 'CM'],
+          },
+        },
+        orderBy: [{ shooting: 'desc' }, { overall: 'desc' }],
+      }),
+      this.prisma.savePlayer.findMany({
+        where: {
+          gameSaveId: saveId,
+          saveTeamId: awayTeamId,
+          role: 'starter',
+          position: {
+            in: ['ST', 'LW', 'RW', 'CAM', 'CM'],
+          },
+        },
+        orderBy: [{ shooting: 'desc' }, { overall: 'desc' }],
+      }),
+    ]);
+
+    const events: Array<{
+      minute: number;
+      type: string;
+      teamSide: string;
+      playerName?: string;
+      playerInName?: string;
+      playerOutName?: string;
+    }> = [];
+
+    const createGoalEvents = (
+      count: number,
+      teamSide: 'home' | 'away',
+      players: typeof homePlayers,
+    ) => {
+      for (let i = 0; i < count; i++) {
+        const scorer = players[Math.floor(Math.random() * Math.max(players.length, 1))];
+
+        if (!scorer) continue;
+
+        events.push({
+          minute: Math.floor(this.randomBetween(8, 88)),
+          type: 'GOAL',
+          teamSide,
+          playerName: scorer.name,
+        });
+      }
+    };
+
+    createGoalEvents(homeGoals, 'home', homePlayers);
+    createGoalEvents(awayGoals, 'away', awayPlayers);
+
+    const sortedEvents = events.sort((a, b) => a.minute - b.minute);
+
+    if (sortedEvents.length > 0) {
+      await this.prisma.matchEvent.createMany({
+        data: sortedEvents.map((event) => ({
+          ...event,
+          matchResultId,
+        })),
+      });
+    }
+
+    return sortedEvents;
   }
 
   private getWinnerLabel(homeGoals: number, awayGoals: number) {
@@ -5425,8 +5580,6 @@ export class UsersService {
   }
 
   async updateSelectedTeamFormation(saveId: string, formation: string) {
-    console.log("FORMATION USERS SERVICE VALUE:", formation);
-    console.log("FORMATION USERS SERVICE TYPE:", typeof formation);
         
     const { selectedTeam } = await this.getRequiredSelectedTeam(saveId);
 

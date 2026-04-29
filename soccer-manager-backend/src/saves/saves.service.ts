@@ -201,13 +201,13 @@ export class SavesService {
           name: baseTeam.name,
           shortName: baseTeam.shortName,
           formation: '4-3-3',
+          balance: baseTeam.id === baseSelectedTeam.id ? 50000000 : 0,
           gameSaveId: gameSave.id,
           saveLeagueId: baseTeam.leagueId
             ? createdSaveLeagues.get(baseTeam.leagueId)
             : null,
         },
       });
-
       createdSaveTeams.set(baseTeam.id, saveTeam.id);
     }
 

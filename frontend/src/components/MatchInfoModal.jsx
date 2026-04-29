@@ -280,35 +280,50 @@ function MatchEvents({ matchSummary }) {
   const goalscorers = matchSummary?.goalscorers || [];
   const substitutions = matchSummary?.substitutions || [];
 
+  const events = [
+    ...goalscorers.map((event) => ({
+      id: `goal-${event.minute}-${event.player?.id || event.player?.name}`,
+      minute: event.minute,
+      type: "GOAL",
+      teamSide: event.teamSide,
+      playerName: event.player?.name || event.playerName,
+    })),
+    ...substitutions.map((event) => ({
+      id: `sub-${event.minute}-${event.playerOut?.id || event.playerOut?.name}-${event.playerIn?.id || event.playerIn?.name}`,
+      minute: event.minute,
+      type: "SUBSTITUTION",
+      teamSide: event.teamSide,
+      playerOutName: event.playerOut?.name || event.playerOutName,
+      playerInName: event.playerIn?.name || event.playerInName,
+    })),
+  ].sort((a, b) => a.minute - b.minute);
+
   return (
     <div className="match-summary-details">
-      <h3>Gólszerzők</h3>
+      <h3>Meccs események</h3>
 
-      {goalscorers.length ? (
+      {events.length ? (
         <div className="match-event-list">
-          {goalscorers.map((event, index) => (
-            <div key={`${event.minute}-${event.player?.id}-${index}`}>
-              {event.minute}' - {event.player?.name} ({event.teamSide})
+          {events.map((event, index) => (
+            <div key={`${event.id}-${index}`} className="match-event-row">
+              <span>{event.minute}'</span>
+
+              {event.type === "GOAL" && (
+                <strong>
+                  ⚽ {event.playerName} ({event.teamSide})
+                </strong>
+              )}
+
+              {event.type === "SUBSTITUTION" && (
+                <strong>
+                  🔁 {event.playerOutName} → {event.playerInName} ({event.teamSide})
+                </strong>
+              )}
             </div>
           ))}
         </div>
       ) : (
-        <p className="muted-text">Nem volt gólszerző.</p>
-      )}
-
-      <h3>Cserék</h3>
-
-      {substitutions.length ? (
-        <div className="match-event-list">
-          {substitutions.map((event, index) => (
-            <div key={`${event.minute}-${event.playerIn?.id}-${index}`}>
-              {event.minute}' - {event.playerOut?.name} →{" "}
-              {event.playerIn?.name} ({event.teamSide})
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="muted-text">Nem volt csere.</p>
+        <p className="muted-text">Nem volt kiemelt meccsesemény.</p>
       )}
     </div>
   );
