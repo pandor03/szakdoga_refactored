@@ -242,11 +242,7 @@ export default function TransferPage() {
         >
           <GameNav />
           <p className="muted-text">
-            Balance: €{Number(
-              transferScreen?.team?.balance ??
-              transferScreen?.team?.budget ??
-              0
-            ).toLocaleString()}
+            Balance: €{Number(transferScreen?.team?.balance ?? 0).toLocaleString()}
           </p>
         </PageHero>
 

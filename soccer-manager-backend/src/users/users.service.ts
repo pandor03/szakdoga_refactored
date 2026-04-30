@@ -436,6 +436,7 @@ export class UsersService {
         name: selectedTeam.name,
         shortName: selectedTeam.shortName,
         formation: selectedTeam.formation,
+        balance: selectedTeam.balance,
       },
       seasonState,
       summary,
@@ -2043,7 +2044,7 @@ export class UsersService {
         shortName: true,
         formation: true,
         tacticStyle: true,
-        budget: true,
+        balance: true,
         gameSaveId: true,
         saveLeagueId: true,
       },
@@ -4289,7 +4290,7 @@ export class UsersService {
             id: true,
             name: true,
             shortName: true,
-            budget: true,
+            balance: true,
           },
         },
       },
@@ -4307,20 +4308,8 @@ export class UsersService {
       throw new BadRequestException('Selected team cannot buy its own player');
     }
 
-    if (selectedTeam.budget < player.marketValue) {
-      throw new BadRequestException('Not enough budget to buy this player');
-    }
-
-    if (player.saveTeamId === selectedTeam.id) {
-      throw new BadRequestException('Selected team cannot buy its own player');
-    }
-
-    if (!player.isTransferListed) {
-      throw new BadRequestException('Player is not transfer listed');
-    }
-
-    if (selectedTeam.budget < player.marketValue) {
-      throw new BadRequestException('Not enough budget to buy this player');
+    if (selectedTeam.balance < player.marketValue) {
+      throw new BadRequestException('Not enough balance to buy this player');
     }
 
     const updatedPlayer = await this.prisma.$transaction(async (tx) => {
@@ -4329,7 +4318,7 @@ export class UsersService {
           id: selectedTeam.id,
         },
         data: {
-          budget: {
+          balance: {
             decrement: player.marketValue,
           },
         },
@@ -4340,7 +4329,7 @@ export class UsersService {
           id: player.saveTeamId,
         },
         data: {
-          budget: {
+          balance: {
             increment: player.marketValue,
           },
         },
@@ -4400,6 +4389,7 @@ export class UsersService {
         id: selectedTeam.id,
         name: selectedTeam.name,
         shortName: selectedTeam.shortName,
+        balance: selectedTeam.balance - player.marketValue,
       },
       player: this.mapPlayerForResponse(updatedPlayer),
     };
