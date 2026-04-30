@@ -480,6 +480,27 @@ export class SavesService {
   async deleteSave(userId: string, saveId: string) {
     const save = await this.getRequiredOwnedGameSave(userId, saveId);
 
+    const matchResults = await this.prisma.matchResult.findMany({
+      where: {
+        gameSaveId: save.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const matchResultIds = matchResults.map((result) => result.id);
+
+    if (matchResultIds.length > 0) {
+      await this.prisma.matchEvent.deleteMany({
+        where: {
+          matchResultId: {
+            in: matchResultIds,
+          },
+        },
+      });
+    }
+
     await this.prisma.matchResult.deleteMany({
       where: {
         gameSaveId: save.id,

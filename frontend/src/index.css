@@ -2455,23 +2455,6 @@ select {
   padding: 4px 7px;
 }
 
-.tooltip-action-btn {
-  width: 100%;
-  margin-top: 10px;
-  border: none;
-  border-radius: 10px;
-  padding: 9px 10px;
-  background: #111827;
-  color: #ffffff;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.tooltip-action-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
 .champion-history-card {
   border: 1px solid rgba(245, 158, 11, 0.35);
   background: rgba(245, 158, 11, 0.08);
@@ -2484,61 +2467,8 @@ select {
   margin-top: 14px;
 }
 
-.champion-history-row {
-  display: grid;
-  grid-template-columns: 1.5fr auto 1fr;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid #fde68a;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.champion-history-row strong {
-  color: #111827;
-}
-
-.champion-history-row span {
-  font-weight: 800;
-  color: #92400e;
-}
-
-.champion-history-row small {
-  color: #6b7280;
-}
-
-@media (max-width: 750px) {
-  .champion-history-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.player-tooltip {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 12px);
-  width: 190px;
-  padding: 12px;
-  border-radius: 12px;
-  background: #111827;
-  color: white;
-  text-align: left;
-  transform: translateX(-50%);
-  opacity: 0;
-  pointer-events: none;
-  z-index: 20;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
 .squad-list-tooltip {
   bottom: calc(100% + 10px);
-}
-
-.squad-list-tooltip.is-open {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-4px);
 }
 
 .champion-history-row {
@@ -2619,11 +2549,6 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
-}
-
-.pitch-player-card:hover .player-tooltip {
-  opacity: 1;
-  transform: translateX(-50%) translateY(-4px);
 }
 
 .bench-player-card:hover .player-tooltip,
