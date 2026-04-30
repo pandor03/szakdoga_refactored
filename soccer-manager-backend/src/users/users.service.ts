@@ -3652,6 +3652,8 @@ export class UsersService {
         id: selectedTeam.id,
         name: selectedTeam.name,
         shortName: selectedTeam.shortName,
+        balance: 50000000,
+        budget: 100000000,
       },
       opponent,
       selectedTeamStanding,
@@ -6551,6 +6553,8 @@ export class UsersService {
         id: selectedTeam.id,
         name: selectedTeam.name,
         shortName: selectedTeam.shortName,
+        balance: 50000000,
+        budget: 100000000,
       },
       totalPlayers: players.length,
       players: players.map((player) => ({
