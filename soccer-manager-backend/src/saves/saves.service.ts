@@ -201,7 +201,6 @@ export class SavesService {
           name: baseTeam.name,
           shortName: baseTeam.shortName,
           formation: '4-3-3',
-          balance: 50000000,
           budget: 100000000,
           gameSaveId: gameSave.id,
           saveLeagueId: baseTeam.leagueId

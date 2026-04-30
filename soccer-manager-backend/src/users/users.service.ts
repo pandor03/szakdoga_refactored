@@ -1576,7 +1576,7 @@ export class UsersService {
       shortName: selectedTeam.shortName,
       formation: selectedTeam.formation,
       tacticStyle: selectedTeam.tacticStyle,
-      budget: selectedTeam.budget,
+      budget: selectedTeam.balance,
     };
   }
 
